@@ -1,0 +1,11 @@
+.vscode
+tmp
+.air.toml
+.env
+
+/dist/
+/build/
+/tmp/
+/scripts
+/testing
+/dummyData

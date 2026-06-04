@@ -1,0 +1,5 @@
+package bookingStore
+
+func BookSeats() {
+
+}

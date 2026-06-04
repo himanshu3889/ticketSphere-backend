@@ -1,0 +1,115 @@
+name: ticketsphere
+
+services:
+  prometheus-config:
+    image: alpine:3.19
+    container_name: ticketsphere-prometheus-config
+    env_file: .env
+    volumes:
+      - ./monitoring:/src:ro
+      - prometheus_data:/etc/prometheus
+    command: >
+      sh -c "
+        apk add --no-cache gettext &&
+        envsubst < /src/prometheus.yml > /etc/prometheus/prometheus.yml
+      "
+    environment:
+      - PROMETHEUS_PORT=${PROMETHEUS_PORT}
+      - PROMETHEUS_USER=${PROMETHEUS_USER}
+      - PROMETHEUS_PASSWORD=${PROMETHEUS_PASSWORD}
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ticketsphere-prometheus
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    volumes:
+      - prometheus_data:/etc/prometheus:ro
+      - prometheus_data:/prometheus
+    ports: ["${PROMETHEUS_PORT}:9090"]
+    networks: [ticketsphere-net]
+    profiles: [monitoring]
+    depends_on:
+      prometheus-config:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ticketsphere-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+    volumes: [grafana_data:/var/lib/grafana]
+    ports: ["${GRAFANA_PORT}:3000"]
+    networks: [ticketsphere-net]
+    profiles: [monitoring]
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:latest
+    container_name: ticketsphere-loki
+    ports: ["3100:3100"]
+    volumes:
+      - ./monitoring/loki.yml:/etc/loki/loki.yml 
+      - loki_data:/loki
+    networks: [ticketsphere-net]
+    profiles: [monitoring]
+
+  # Exporters
+  # redis-exporter:
+  #   image: oliver006/redis_exporter:latest
+  #   environment:
+  #     REDIS_ADDR: "redis://redis:6379"
+  #   ports:
+  #     - "9121:9121"
+  #   depends_on:
+  #     - redis
+
+  # postgres-exporter:
+  #   image: prometheuscommunity/postgres-exporter:latest
+  #   environment:
+  #     DATA_SOURCE_URI: "postgres:5432/testdb?sslmode=disable"
+  #     DATA_SOURCE_USER: "postgres"
+  #     DATA_SOURCE_PASS: "postgres"
+  #   ports:
+  #     - "9187:9187"
+  #   depends_on:
+  #     - postgres
+
+  # mongodb-exporter:
+  #   image: percona/mongodb_exporter:0.40
+  #   command: --mongodb.uri=mongodb://admin:admin@mongo:27017 --collect-all
+  #   ports:
+  #     - "9216:9216"
+  #   depends_on:
+  #     - mongodb
+
+  # kafka-exporter:
+  #   image: danielqsj/kafka-exporter:latest
+  #   command: ["--kafka.server=kafka:9092"]
+  #   ports:
+  #     - "9308:9308"
+  #   depends_on:
+  #     - kafka
+
+  # elasticsearch-exporter:
+  #   image: prometheuscommunity/elasticsearch-exporter:latest
+  #   command: --es.uri=http://elasticsearch:9200 --es.all --es.indices --es.shards
+  #   ports:
+  #     - "9114:9114"
+  #   depends_on:
+  #     - elasticsearch
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+
+networks:
+  ticketsphere-net:
+    driver: bridge

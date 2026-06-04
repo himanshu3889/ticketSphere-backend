@@ -1,0 +1,51 @@
+name: ticketsphere
+
+services:
+  # Goma Gateway - Public Entry Point
+
+    # Renders goma.yml with env vars substituted
+  gateway-config:
+    image: alpine:3.19
+    container_name: ticketsphere-gateway-config
+    env_file: .env
+    volumes:
+      - ./gateway:/src:ro
+      - gateway_data:/config
+    command: >
+      sh -c "
+        apk add --no-cache gettext &&
+        envsubst < /src/goma.yml > /config/goma.yml
+      "
+    environment:
+      - INVENTORY_API_TARGET=${INVENTORY_API_TARGET}
+      - BOOKING_API_TARGET=${BOOKING_API_TARGET}
+      - PAYMENT_API_TARGET=${PAYMENT_API_TARGET}
+      - GATEWAY_SECRET=${GATEWAY_SECRET}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_DB=${REDIS_DB}
+      - REDIS_PORT=${REDIS_PORT}
+
+  # Goma Gateway
+  gateway:
+    image: jkaninda/goma-gateway:latest
+    container_name: ticketsphere-gateway
+    command: --config /config/goma.yml
+    ports:
+      - "${GATEWAY_PORT}:8080"
+    volumes:
+      - gateway_data:/config:ro
+    networks:
+      - ticketsphere-net
+    depends_on:
+      gateway-config:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  gateway_data:
+
+networks:
+  ticketsphere-net:
+    driver: bridge

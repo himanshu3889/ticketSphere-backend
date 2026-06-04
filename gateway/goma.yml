@@ -1,0 +1,130 @@
+version: 2
+gateway:
+  entryPoints:
+    web:
+      address: ":8080"
+
+
+  # Will use the tls certificate in future 
+  # tls:
+  #   certificates:
+  #     - certFile: "/etc/goma/certs/gateway-client.pem"
+  #       keyFile: "/etc/goma/certs/gateway-client-key.pem"
+
+  log:
+    level: info
+    format: json
+
+  # Connect existing redis stack
+  redis:
+    addr: "redis:${REDIS_PORT}"  # use the exsting container
+    password: ${REDIS_PASSWORD}
+    db: ${REDIS_DB}
+
+  # Prometheus metrics
+  monitoring:
+    enableMetrics: true
+    metricsPath: /metrics
+
+  routes:
+    # --- Protected Services ---
+    - name: inventory-api
+      path: /api/inventory
+      rewrite: /
+      target: ${INVENTORY_API_TARGET}
+      healthCheck:
+        path: /health-check
+        interval: 30s
+        timeout: 10s
+      middlewares: ["jwt-auth", "rate-limit-user", "inject-secret"]
+
+    - name: booking-api
+      path: /api/booking
+      rewrite: /
+      target: ${BOOKING_API_TARGET}
+      healthCheck:
+        path: /health-check
+        interval: 30s
+        timeout: 10s
+      middlewares: ["jwt-auth", "rate-limit-user", "inject-secret"]
+
+    # - name: payment-api
+    #   path: /api/payment
+    #   rewrite: /
+    #   target: ${PAYMENT_API_TARGET}
+    #   healthCheck:
+    #     path: /health-check
+    #     interval: 30s
+    #     timeout: 10s
+    #   middlewares: ["jwt-auth", "rate-limit-api", "inject-secret"]
+
+    # --- Public Services ---
+    - name: inventory-public-api
+      path: /api/public/inventory
+      rewrite: /
+      target: ${INVENTORY_API_TARGET}
+      healthCheck:
+        path: /health-check
+        interval: 30s
+        timeout: 10s
+      middlewares: ["rate-limit-api", "inject-secret"]
+
+    - name: auth-api
+      path: /api/auth
+      rewrite: /
+      target: ${BOOKING_API_TARGET}
+      healthCheck:
+        path: /health-check
+        interval: 30s
+        timeout: 10s
+      middlewares: ["rate-limit-api", "inject-secret"]
+
+middlewares:
+  - name: jwt-auth
+    type: jwtAuth
+    paths: ["/*"]
+    rule:
+      secret: "ticketsphere"
+      algo: "HS256"
+      forwardHeaders:
+        X-User: sub
+
+  - name: rate-limit-api
+    type: rateLimit
+    paths: ["/*"]
+    rule:
+      unit: minute
+      requestsPerUnit: 60
+      burst: 20
+      banAfter: 5
+      banDuration: 5m
+      store: redis
+      key: ip
+
+  - name: rate-limit-user
+    type: rateLimit
+    paths: ["/*"]
+    rule:
+      unit: minute
+      requestsPerUnit: 60
+      burst: 20
+      banAfter: 5
+      banDuration: 5m
+      store: redis
+      key: header:X-User   
+
+  - name: inject-secret
+    type: requestHeaders
+    paths: ["/*"]
+    rule:
+      setHeaders:  
+        X-Gateway-Secret: ${GATEWAY_SECRET}
+
+
+  # - name: cors
+  #   type: cors
+  #   rule:
+  #     origins: ["*"]
+  #     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+  #     headers: ["Authorization", "Content-Type", "X-Request-ID"]
+  #     credentials: true

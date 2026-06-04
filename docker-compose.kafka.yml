@@ -1,0 +1,140 @@
+name: ticketsphere
+
+services:
+  kafka:
+    image: apache/kafka:latest
+    container_name: ticketsphere-kafka
+    ports:
+      - "9092:9092"   # External clients connect here
+      - "9093:9093"   # Internal controller communication (KRaft)
+    environment:
+      # Explicitly enable KRaft mode (Kafka without ZooKeeper)
+      # KAFKA_KRAFT_MODE: 'true'
+      
+      # Core KRaft settings - no ZooKeeper needed
+      # Unique ID for this broker node 
+      KAFKA_NODE_ID: 1
+      # This node acts as both broker (handles data) and controller (manages cluster state)
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      # Defines the quorum voters for controller election (format: id@host:port)
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@ticketsphere-kafka:9093"
+      
+      # Cluster identity - generate once with: kafka-storage.sh random-uuid
+      # This UUID persists cluster metadata across restarts
+      CLUSTER_ID: "Mk3OEYBSD34fcwNTJENDM2Qk"
+      
+      # Listener configuration
+      # PLAINTEXT: Client traffic (9092), CONTROLLER: Internal KRaft quorum (9093)
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      # What clients see when connecting (uses KAFKA_HOST env var or defaults to localhost)
+      # INTERNAL for Docker containers, EXTERNAL for host machine
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://ticketsphere-kafka:29092,EXTERNAL://localhost:9092
+      # Maps listener names to security protocols (PLAINTEXT = no auth)
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      # Which listener brokers use to talk to each other
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      # Which listener is reserved for the KRaft controller quorum
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      
+      # Storage paths - where Kafka stores topic data and KRaft metadata
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      
+      # Topic settings
+      # Prevent accidental topic creation 
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      # Replication factor for internal offset topic
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      # Replication factor for transaction state logs
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      # Minimum in-sync replicas for transactions
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      
+      # Retention and cleanup - tuned for local development 
+      # Keep logs for 24 hours 
+      KAFKA_LOG_RETENTION_HOURS: 24
+      # Max retention size: 1GB per partition
+      KAFKA_LOG_RETENTION_BYTES: 1073741824
+      # Log segment size: 100MB (smaller segments = faster cleanup after bursts)
+      KAFKA_LOG_SEGMENT_BYTES: 104857600
+      
+      # Performance tuning 
+      # Threads handling network requests (3 handles burst traffic fine)
+      KAFKA_NUM_NETWORK_THREADS: 3
+      # Threads handling disk I/O (4 is sweet spot for burst writes without CPU hog)
+      KAFKA_NUM_IO_THREADS: 4
+      # TCP send buffer size (100KB - helps with burst responses)
+      KAFKA_SOCKET_SEND_BUFFER_BYTES: 102400
+      # TCP receive buffer size (100KB - handles large produce batches efficiently)
+      KAFKA_SOCKET_RECEIVE_BUFFER_BYTES: 102400
+      # Max request size (100MB - allows clients to send large batches for burst loading)
+      KAFKA_SOCKET_REQUEST_MAX_BYTES: 104857600
+      
+      # Group coordinator settings
+      # No startup delay for consumer groups 
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # Require all replicas to acknowledge offset commits (strong consistency)
+      KAFKA_OFFSETS_COMMIT_REQUIRED_ACKS: -1
+      
+      # JVM heap size (1GB is plenty for handling 100k bursts locally)
+      KAFKA_HEAP_OPTS: "-Xmx1G -Xms1G"
+
+    volumes:
+      # Persist Kafka data across container restarts
+      - kafka_data:/var/lib/kafka/data
+    networks: [ticketsphere-net]
+    restart: unless-stopped
+    healthcheck:
+      # Check if Kafka is responsive by listing topics
+      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server ticketsphere-kafka:9092 > /dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 60s  # KRaft needs time to initialize
+
+
+  # Kafka Connect with Debezium
+  debezium:
+    image: debezium/connect:2.7.3.Final
+    container_name: ticketsphere-debezium
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: ticketsphere-kafka:29092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: connect_configs
+      OFFSET_STORAGE_TOPIC: connect_offsets
+      STATUS_STORAGE_TOPIC: connect_statuses
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECTOR_CLIENT_CONFIG_OVERRIDE_POLICY: "All"
+    depends_on:
+      - kafka
+    networks: [ticketsphere-net]
+
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: ticketsphere-kafka-ui
+    ports:
+      - "8085:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=ticketsphere-cluster
+      # Connects using the INTERNAL listener you defined earlier
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=ticketsphere-kafka:29092
+      # Allows you to view your Kafka Connect clusters in the UI as well
+      - KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME=debezium
+      - KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS=http://ticketsphere-debezium:8083
+      - DYNAMIC_CONFIG_ENABLED=true
+    networks: [ticketsphere-net]
+    depends_on:
+      - kafka
+      - debezium
+
+volumes:
+  kafka_data:
+
+networks:
+  ticketsphere-net:
+    driver: bridge
