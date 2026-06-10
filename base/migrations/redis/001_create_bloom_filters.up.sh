@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Source the .env makes the variables available 
+
 set -e
 
 REDIS_PASSWORD="${REDIS_PASSWORD}"
@@ -31,7 +33,7 @@ create_filter() {
 
 echo "Configuring Bloom filters..."
 
-create_filter "ticketspehere:bloom:user:id" 0.001 1000000
-create_filter "ticketspehere:bloom:user:email" 0.001 500000
+create_filter "ticketsphere:bloom:user:id" 0.001 1000000
+create_filter "ticketsphere:bloom:user:email" 0.001 500000
 
 echo "Bloom filter migration 001 complete!"

@@ -7,6 +7,7 @@ import (
 
 	baseConfigs "github.com/himanshu3889/ticketSphere-backend/configs"
 	"github.com/redis/go-redis/v9"
+	"github.com/sirupsen/logrus"
 )
 
 // BloomManager handles all bloom filters centrally
@@ -16,7 +17,7 @@ type BloomManager struct {
 }
 
 // NewBloomManager creates a manager with predefined configurations
-func NewBloomManager(client *redis.Client, configs []baseConfigs.BloomFilterConfig) (*BloomManager, error) {
+func NewBloomManager(client *redis.Client, configs []baseConfigs.BloomFilterConfig, logger *logrus.Logger) (*BloomManager, error) {
 	if client == nil {
 		return nil, errors.New("redis client is nil")
 	}
@@ -38,6 +39,21 @@ func NewBloomManager(client *redis.Client, configs []baseConfigs.BloomFilterConf
 			return nil, fmt.Errorf("invalid fp rate for %s: %f", cfg.Key, cfg.FPRate)
 		}
 		m.configs[cfg.Key] = cfg
+	}
+
+	// Check if bloom filter exist in redis or nota
+	for key := range m.configs {
+		exists, err := client.Exists(context.Background(), string(key)).Result()
+		if err != nil {
+			logger.WithFields(logrus.Fields{
+				"filter_key": string(key),
+			}).WithError(err).Error("Failed to check bloom filter key existence")
+			continue
+		} else if exists == 0 {
+			logger.WithFields(logrus.Fields{
+				"filter_key": string(key),
+			}).Warn("Bloom filter key does not exist in Redis")
+		}
 	}
 
 	return m, nil

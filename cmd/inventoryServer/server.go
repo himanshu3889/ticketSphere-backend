@@ -73,13 +73,14 @@ func NewServer(cfg *configs.Configs, logger *logrus.Logger) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	apiHandler, err := inventoryApi.New(cachedStore, srvr.logger)
+	apiHandler, err := inventoryApi.New(&cfg.App.Auth, cachedStore, srvr.logger)
 	if err != nil {
 		return nil, err
 	}
 
 	// Wire routes
 	router := gin.New()
+	router.Use(middlewares.GatewayTrafficMiddleware(cfg.App.Auth.GatewaySecret))
 	router.Use(middlewares.RequestIDMiddleware())
 	router.Use(gin.Recovery())
 

@@ -8,18 +8,18 @@ pool_size: 50
 min_idle_conns: 10
 
 bloom_filters:
-  - key: ticketspehere:bloom:user:id
+  - key: ticketsphere:bloom:user:id
     capacity: 1000000
     fp_rate: 0.01
 
-  - key: ticketspehere:bloom:user:email
+  - key: ticketsphere:bloom:user:email
     capacity: 1000000
     fp_rate: 0.01
 
-  - key: ticketspehere:bloom:venue:id
-    capacity: 1000000
-    fp_rate: 0.01
+  # - key: ticketsphere:bloom:venue:id
+  #   capacity: 1000000
+  #   fp_rate: 0.01
 
-  - key: ticketspehere:bloom:event:id
-    capacity: 1000000
-    fp_rate: 0.01
+  # - key: ticketsphere:bloom:event:id
+  #   capacity: 1000000
+  #   fp_rate: 0.01

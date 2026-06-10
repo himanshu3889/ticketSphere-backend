@@ -50,13 +50,13 @@ func initBloomManager(bloomFilterConfigs []configs.BloomFilterConfig, redisClien
 		logger.Fatal("no bloom filter configs found in yaml")
 	}
 
-	bloom, err := bloomFilter.NewBloomManager(redisClient, bloomFilterConfigs)
+	bloom, err := bloomFilter.NewBloomManager(redisClient, bloomFilterConfigs, logger)
 	if err != nil {
-		logger.WithError(err).Fatal("unable to initialize global bloom filter")
+		logger.WithError(err).Fatal("unable to initialize bloom filter")
 		return nil, err
 	}
 
-	logger.WithField("count", len(bloomFilterConfigs)).Info("Global bloom filter initialized")
+	logger.WithField("count", len(bloomFilterConfigs)).Info("Bloom filter initialized")
 	return bloom, nil
 }
 

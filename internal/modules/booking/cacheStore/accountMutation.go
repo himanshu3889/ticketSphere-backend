@@ -11,9 +11,7 @@ import (
 
 // Create user by write back cache strategy
 func (cacheStore *CacheStore) CreateUser(ctx context.Context, user *models.User) *appError.Error {
-	// Write Back cache
-
-	// DB
+	// DB create user
 	appErr := cacheStore.Store.CreateUser(ctx, user)
 	if appErr != nil {
 		return appErr
@@ -21,14 +19,21 @@ func (cacheStore *CacheStore) CreateUser(ctx context.Context, user *models.User)
 
 	// async Set cache
 	cacheKey, _ := rediskeys.Keys.User.Info(user.ID)
-	bloomKey := bloomFilter.UserIDBloomFilter
-	bloomItem := user.ID.String()
 
 	go func() {
-		err := cacheStore.CacheManager.Set(ctx, cacheKey, &bloomKey, user, &bloomItem, 0)
+		err := cacheStore.CacheManager.Set(ctx, cacheKey, nil, user, nil, 0)
 		if err != nil {
-			// set cache error
+			cacheStore.logger.WithError(err).Debug("Error setting the user info in cache")
 		}
+		// Add bloom keys for user -
+		// User Id
+		bloomUserEmailKey := bloomFilter.UserEmailBloomFilter
+		bloomUserIdKey := bloomFilter.UserIDBloomFilter
+		bloomUserIdItem := user.ID.String()
+		cacheStore.BloomManager.Add(ctx, bloomUserIdKey, bloomUserIdItem)
+		// User email
+		bloomUserEmailItem := user.Email
+		cacheStore.BloomManager.Add(ctx, bloomUserEmailKey, bloomUserEmailItem)
 	}()
 
 	return nil
