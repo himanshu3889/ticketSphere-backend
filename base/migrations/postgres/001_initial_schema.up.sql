@@ -11,18 +11,6 @@ CREATE TABLE users (
     deleted_at TIMESTAMPTZ
 );
 
--- user sessions
-CREATE TABLE user_sessions (
-    id BIGINT PRIMARY KEY,  -- Snowflake ID from app
-    user_id       BIGINT       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    refresh_token TEXT         NOT NULL,
-    device_info   JSONB,                          -- {os, browser, model …}
-    ip_address    INET,
-    created_at    TIMESTAMPTZ  DEFAULT NOW(),
-    updated_at    TIMESTAMPTZ  DEFAULT NOW(),
-    expires_at    TIMESTAMPTZ  NOT NULL
-);
-
 
 --  venues table
 CREATE TABLE venues (
@@ -88,8 +76,8 @@ CREATE TABLE bookings (
     total_amount NUMERIC(12,2) NOT NULL DEFAULT 0.00,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     confirmed_at TIMESTAMPTZ,
-    cancelled_at TIMESTAMPTZ
-    expires_at TIMESTAMPTZ NOT NULL,
+    cancelled_at TIMESTAMPTZ,
+    expires_at TIMESTAMPTZ NOT NULL
 );
 
 -- booking idempotency key table
@@ -134,8 +122,6 @@ CREATE TABLE payment_idempotency_keys (
 );
 
 
--- Create index on the users sessions table
-CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
 
 -- Create index on events table
 CREATE INDEX idx_events_venue_status ON events(venue_id, status);

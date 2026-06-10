@@ -40,6 +40,8 @@ func New(configs *configs.Configs) *logrus.Logger {
 	// log.SetOutput(io.Discard)
 	log.SetFormatter(&logrus.JSONFormatter{})
 
+	log.SetLevel(logrus.DebugLevel) // See everything in development; Dynamic ?
+
 	// Configure Loki options specific to THIS service
 	opts := lokirus.NewLokiHookOptions().
 		WithStaticLabels(lokirus.Labels{

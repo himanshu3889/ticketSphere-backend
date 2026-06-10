@@ -6,6 +6,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type AuthConfigurations struct {
+	JWTSecret     string `yaml:"jwt_secret"`
+	JWTAudience   string `yaml:"jwt_audience"`
+	JWTIssuer     string `yaml:"jwt_issuer"`
+	GatewaySecret string `yaml:"gateway_secret"`
+}
+
 type AppConfigurations struct {
 	App struct {
 		Name     string `yaml:"name"`
@@ -13,10 +20,7 @@ type AppConfigurations struct {
 		Env      string `yaml:"env"`
 	} `yaml:"app"`
 
-	Auth struct {
-		JWTSecret     string `yaml:"JWT_SECRET"`
-		GatewaySecret string `yaml:"GATEWAY_SECRET"`
-	} `yaml:"-"`
+	Auth AuthConfigurations `yaml:"auth"`
 
 	Postgres struct {
 		Host               string `yaml:"host"`

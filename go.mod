@@ -8,7 +8,7 @@ go 1.25.1
 require (
 	github.com/bwmarrin/snowflake v0.3.0 // Snowflake id
 	github.com/gin-gonic/gin v1.12.0 // HTTP/WebSocket router
-	github.com/golang-jwt/jwt/v5 v5.3.0 // JWT
+	github.com/golang-jwt/jwt/v5 v5.3.1 // JWT
 	github.com/google/uuid v1.6.0 // UUID
 	github.com/gorilla/websocket v1.5.3 // WebSocket implementation
 	github.com/joho/godotenv v1.5.1 // ENV

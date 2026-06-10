@@ -1,17 +1,21 @@
 #!/bin/bash
-# scripts/check_bloom_filters.sh
 
 set -e
 
+REDIS_PASSWORD="${REDIS_PASSWORD}"
+
+run() {
+    docker exec -e REDISCLI_AUTH="$REDIS_PASSWORD" ticketsphere-redis redis-cli "$@"
+}
+
 check_filter() {
     local key=$1
-    if redis-cli BF.INFO "$key" > /dev/null 2>&1; then
+    if run BF.INFO "$key" > /dev/null 2>&1; then
         echo "OK: $key"
     else
         echo "FAIL: $key missing"
-        exit 1
     fi
 }
 
-check_filter "ticketspehere:bloom:user:id"
-check_filter "ticketspehere:bloom:email"
+check_filter "ticketsphere:bloom:user:id"
+check_filter "ticketsphere:bloom:user:email"

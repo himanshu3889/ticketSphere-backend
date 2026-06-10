@@ -5,12 +5,11 @@ import (
 	baseApi "github.com/himanshu3889/ticketSphere-backend/base/api"
 )
 
-func SetupRoutes(r *gin.Engine, h *ApiHandler) {
+func SetupRoutes(routeEngine *gin.Engine, handler *ApiHandler) {
 	// Base routes
-	baseGroup := r.Group("")
+	baseGroup := routeEngine.Group("")
 	baseApi.RegisterBaseRoutes(baseGroup)
 
 	// Api routes
-	// api := r.Group("/api")
-
+	handler.RegisterAuthRoutes(baseGroup) // Auth
 }

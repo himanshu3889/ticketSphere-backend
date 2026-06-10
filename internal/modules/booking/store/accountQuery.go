@@ -2,6 +2,7 @@ package bookingStore
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/himanshu3889/ticketSphere-backend/base/models"
 	"github.com/himanshu3889/ticketSphere-backend/base/utils/appError"
@@ -22,6 +23,9 @@ func (store *Store) GetUserByID(ctx context.Context, userID snowflake.ID) (*mode
 
 	err := store.PostgresDB.GetContext(ctx, &user, query, userID)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, appError.NewNotFound("User not found")
+		}
 		store.logger.WithError(err).Error("Failed to fetch user by ID")
 		return nil, appError.NewInternal("Failed to fetch user")
 	}
@@ -42,6 +46,9 @@ func (store *Store) GetUserByUsername(ctx context.Context, username string) (*mo
 
 	err := store.PostgresDB.GetContext(ctx, &user, query, username)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, appError.NewNotFound("User not found")
+		}
 		store.logger.WithError(err).Error("Failed to fetch user by username")
 		return nil, appError.NewInternal("Failed to fetch user ")
 	}
@@ -63,8 +70,11 @@ func (store *Store) GetUserByEmail(ctx context.Context, email string) (*models.U
 
 	err := store.PostgresDB.GetContext(ctx, &user, query, email)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, appError.NewNotFound("User not found")
+		}
 		store.logger.WithError(err).Error("Failed to fetch user by email")
-		return nil, appError.NewInternal("Failed to fetch user ")
+		return nil, appError.NewInternal("Failed to fetch user")
 	}
 
 	return &user, nil

@@ -48,6 +48,16 @@ gateway:
         timeout: 10s
       middlewares: ["jwt-auth", "rate-limit-user", "inject-secret"]
 
+    - name: auth-api
+      path: /api/auth
+      rewrite: /auth
+      target: ${BOOKING_API_TARGET}
+      healthCheck:
+        path: /health-check
+        interval: 30s
+        timeout: 10s
+      middlewares: ["jwt-auth", "rate-limit-api", "inject-secret"]
+
     # - name: payment-api
     #   path: /api/payment
     #   rewrite: /
@@ -59,9 +69,9 @@ gateway:
     #   middlewares: ["jwt-auth", "rate-limit-api", "inject-secret"]
 
     # --- Public Services ---
-    - name: inventory-public-api
+    - name: inventory-api-public
       path: /api/public/inventory
-      rewrite: /
+      rewrite: /public
       target: ${INVENTORY_API_TARGET}
       healthCheck:
         path: /health-check
@@ -69,9 +79,9 @@ gateway:
         timeout: 10s
       middlewares: ["rate-limit-api", "inject-secret"]
 
-    - name: auth-api
-      path: /api/auth
-      rewrite: /
+    - name: auth-api-public
+      path: /api/public/auth
+      rewrite: /public/auth
       target: ${BOOKING_API_TARGET}
       healthCheck:
         path: /health-check
@@ -84,10 +94,13 @@ middlewares:
     type: jwtAuth
     paths: ["/*"]
     rule:
-      secret: "ticketsphere"
+      secret: ${JWT_SECRET}
       algo: "HS256"
+      issuer: ${JWT_ISSUER}
+      audience: ${JWT_AUDIENCE}
       forwardHeaders:
-        X-User: sub
+        X-User-ID: user_id
+        X-User-Email: email
 
   - name: rate-limit-api
     type: rateLimit
@@ -111,8 +124,8 @@ middlewares:
       banAfter: 5
       banDuration: 5m
       store: redis
-      key: header:X-User   
-
+      key: header:X-User-ID
+      
   - name: inject-secret
     type: requestHeaders
     paths: ["/*"]

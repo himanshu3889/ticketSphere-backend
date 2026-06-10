@@ -28,7 +28,7 @@ delete_filter() {
 
 echo "Reverting Bloom filters..."
 
-delete_filter "ticketspehere:bloom:user:id"
-delete_filter "ticketspehere:bloom:user:email"
+delete_filter "ticketsphere:bloom:user:id"
+delete_filter "ticketsphere:bloom:user:email"
 
 echo "Bloom filter migration 001 reverted!"
