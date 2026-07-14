@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 
-	rediskeys "github.com/himanshu3889/ticketSphere-backend/base/infrastructure/redis/redisKeys"
 	"github.com/himanshu3889/ticketSphere-backend/base/models"
 	"github.com/himanshu3889/ticketSphere-backend/base/utils/appError"
 
@@ -26,15 +25,14 @@ func (cacheStore *CacheStore) GetUsersBatch(ctx context.Context, userIDs []snowf
 	keys := make([]string, len(userIDs))
 	idMap := make(map[string]snowflake.ID, len(userIDs)) // for mapping back
 
-	var key string
-	var cacheBoundedKey string
 	for i, id := range userIDs {
-		key, cacheBoundedKey = rediskeys.Keys.User.Info(id)
-		keys[i] = key
-		idMap[key] = id
+		user := &models.User{ID: id}
+		keys[i] = user.CacheIDKey()
+		idMap[keys[i]] = id
 	}
 
 	// Bulk fetch from Redis
+	cacheBoundedKey := models.User{}.CacheBoundedKey()
 	cachedData, err := cacheStore.CacheManager.MGet(ctx, cacheBoundedKey, keys)
 	if err != nil {
 		cacheStore.logger.WithError(err).Error("Redis MGet failed")

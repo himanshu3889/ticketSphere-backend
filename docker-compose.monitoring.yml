@@ -54,61 +54,48 @@ services:
     image: grafana/loki:latest
     container_name: ticketsphere-loki
     ports: ["3100:3100"]
+    command: ["-config.file=/etc/loki/loki.yml"]
     volumes:
       - ./monitoring/loki.yml:/etc/loki/loki.yml 
       - loki_data:/loki
     networks: [ticketsphere-net]
     profiles: [monitoring]
 
-  # Exporters
-  # redis-exporter:
-  #   image: oliver006/redis_exporter:latest
-  #   environment:
-  #     REDIS_ADDR: "redis://redis:6379"
-  #   ports:
-  #     - "9121:9121"
-  #   depends_on:
-  #     - redis
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: ticketsphere-otel-collector
+    command: ["--config=/etc/otel/config.yml"]
+    volumes:
+      - ./monitoring/otel-collector.yml:/etc/otel/config.yml:ro
+    ports:
+      - "4317:4317"   # gRPC OTLP receiver
+      - "4318:4318"   # HTTP OTLP receiver
+      - "8889:8889"   # Prometheus metrics for collector itself
+    networks: [ticketsphere-net]
+    profiles: [monitoring]
+    restart: unless-stopped
 
-  # postgres-exporter:
-  #   image: prometheuscommunity/postgres-exporter:latest
-  #   environment:
-  #     DATA_SOURCE_URI: "postgres:5432/testdb?sslmode=disable"
-  #     DATA_SOURCE_USER: "postgres"
-  #     DATA_SOURCE_PASS: "postgres"
-  #   ports:
-  #     - "9187:9187"
-  #   depends_on:
-  #     - postgres
+  tempo:
+    image: grafana/tempo:latest
+    container_name: ticketsphere-tempo
+    user: "0:0"
+    command: ["-config.file=/etc/tempo.yml"]
+    volumes:
+      - ./monitoring/tempo.yml:/etc/tempo.yml:ro
+      - tempo_data:/tmp/tempo
+    ports:
+      - "3200:3200"   # Tempo HTTP API (Grafana queries this)
+    networks: [ticketsphere-net]
+    profiles: [monitoring]
+    restart: unless-stopped
 
-  # mongodb-exporter:
-  #   image: percona/mongodb_exporter:0.40
-  #   command: --mongodb.uri=mongodb://admin:admin@mongo:27017 --collect-all
-  #   ports:
-  #     - "9216:9216"
-  #   depends_on:
-  #     - mongodb
 
-  # kafka-exporter:
-  #   image: danielqsj/kafka-exporter:latest
-  #   command: ["--kafka.server=kafka:9092"]
-  #   ports:
-  #     - "9308:9308"
-  #   depends_on:
-  #     - kafka
-
-  # elasticsearch-exporter:
-  #   image: prometheuscommunity/elasticsearch-exporter:latest
-  #   command: --es.uri=http://elasticsearch:9200 --es.all --es.indices --es.shards
-  #   ports:
-  #     - "9114:9114"
-  #   depends_on:
-  #     - elasticsearch
 
 volumes:
   prometheus_data:
   grafana_data:
   loki_data:
+  tempo_data:
 
 networks:
   ticketsphere-net:

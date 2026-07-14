@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -18,6 +19,7 @@ import (
 	redisDatabase "github.com/himanshu3889/ticketSphere-backend/base/infrastructure/redis"
 	"github.com/himanshu3889/ticketSphere-backend/base/infrastructure/redis/bloomFilter"
 	"github.com/himanshu3889/ticketSphere-backend/base/middlewares"
+	"github.com/himanshu3889/ticketSphere-backend/base/otelTrace"
 	"github.com/himanshu3889/ticketSphere-backend/base/utils"
 	"github.com/himanshu3889/ticketSphere-backend/configs"
 	inventoryApi "github.com/himanshu3889/ticketSphere-backend/internal/modules/inventory/api"
@@ -45,15 +47,20 @@ func NewServer(cfg *configs.Configs, logger *logrus.Logger) (*Server, error) {
 		logger: logger,
 	}
 
+	// Tracing providers
+	inventoryTp, err := otelTrace.InitTracer(context.Background(), cfg.TracingConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	// Init Postgres
-	var err error
 	srvr.postgresDB, err = database.InitPostgresDB(cfg.App, srvr.logger)
 	if err != nil {
 		return nil, err
 	}
 
 	// Init Redis
-	err, srvr.redisClient, srvr.cacheManager, srvr.bloomManager = redisDatabase.InitRedis(cfg.Redis, srvr.logger)
+	err, srvr.redisClient, srvr.cacheManager, srvr.bloomManager = redisDatabase.InitRedis(cfg.Redis, srvr.logger, inventoryTp)
 	if err != nil {
 		return nil, err
 	}
@@ -80,9 +87,6 @@ func NewServer(cfg *configs.Configs, logger *logrus.Logger) (*Server, error) {
 
 	// Wire routes
 	router := gin.New()
-	router.Use(middlewares.GatewayTrafficMiddleware(cfg.App.Auth.GatewaySecret))
-	router.Use(middlewares.RequestIDMiddleware())
-	router.Use(gin.Recovery())
 
 	// Prometheus Metrics, a protected group for Prometheus
 	metricsGroup := router.Group("/", gin.BasicAuth(gin.Accounts{
@@ -90,7 +94,13 @@ func NewServer(cfg *configs.Configs, logger *logrus.Logger) (*Server, error) {
 	}))
 	metricsGroup.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	inventoryApi.SetupRoutes(router, apiHandler)
+	// Group for all API routes
+	baseApiGroup := router.Group("")
+	baseApiGroup.Use(middlewares.GatewayTrafficMiddleware(cfg.App.Auth.GatewaySecret))
+	baseApiGroup.Use(middlewares.RequestIDMiddleware())
+	baseApiGroup.Use(gin.Recovery())
+
+	inventoryApi.SetupRoutes(baseApiGroup, apiHandler)
 
 	srvr.server = &http.Server{
 		Addr:    srvr.addr,
@@ -100,9 +110,14 @@ func NewServer(cfg *configs.Configs, logger *logrus.Logger) (*Server, error) {
 	return srvr, nil
 }
 
-func (srvr *Server) Start() error {
+func (srvr *Server) start() error {
 	srvr.logger.Infof("Inventory server starting on %s", srvr.addr)
-	return srvr.server.ListenAndServe()
+	listener, err := net.Listen("tcp", srvr.addr)
+	if err != nil {
+		return err
+	}
+	srvr.logger.Infof("Inventory server started successfully on %s", srvr.addr)
+	return srvr.server.Serve(listener)
 }
 
 func (srvr *Server) Shutdown(ctx context.Context) error {
@@ -112,9 +127,10 @@ func (srvr *Server) Shutdown(ctx context.Context) error {
 func (srvr *Server) Run() {
 	// Start HTTP server
 	go func() {
-		if err := srvr.Start(); err != nil && err != http.ErrServerClosed {
+		if err := srvr.start(); err != nil && err != http.ErrServerClosed {
 			srvr.logger.Fatalf("Inventory server error: %v", err)
 		}
+		srvr.logger.Info("Inventory server started successfully")
 	}()
 
 	// Wait for signal

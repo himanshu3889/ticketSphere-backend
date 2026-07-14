@@ -42,6 +42,9 @@ func New(configs *configs.Configs) *logrus.Logger {
 
 	log.SetLevel(logrus.DebugLevel) // See everything in development; Dynamic ?
 
+	// automatic caller injection
+	log.SetReportCaller(true)
+
 	// Configure Loki options specific to THIS service
 	opts := lokirus.NewLokiHookOptions().
 		WithStaticLabels(lokirus.Labels{

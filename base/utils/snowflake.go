@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"math"
 	"strconv"
 
 	"github.com/bwmarrin/snowflake"
@@ -24,6 +25,18 @@ func GenerateSnowflakeID(snowflakeNode *snowflake.Node) snowflake.ID {
 	return snowflakeNode.Generate()
 }
 
+func ValidInt64SnowflakeID(id int64) (snowflake.ID, error) {
+	// Create a snowflake ID from the int64 value
+	snowflakeID := snowflake.ID(id)
+
+	// Validate by checking if it can extract basic components
+	// Snowflake IDs should be > 0 and have reasonable timestamp
+	if snowflakeID.Int64() > 0 && snowflakeID.Time() > 0 {
+		return snowflakeID, nil
+	}
+	return 0, errors.New("Invalid ID")
+}
+
 // isValidSnowflake checks if a string is a valid snowflake ID
 func ValidSnowflakeID(id string) (snowflake.ID, error) {
 	// Try to parse as uint64
@@ -32,13 +45,10 @@ func ValidSnowflakeID(id string) (snowflake.ID, error) {
 		return 0, errors.New("Invalid ID")
 	}
 
-	// Create a snowflake ID from the parsed uint64
-	snowflakeID := snowflake.ID(parsedID)
+	return ValidInt64SnowflakeID(int64(parsedID))
+}
 
-	// Validate by checking if it can extract basic components
-	// Snowflake IDs should be > 0 and have reasonable timestamp
-	if snowflakeID.Int64() > 0 && snowflakeID.Time() > 0 {
-		return snowflakeID, nil
-	}
-	return 0, errors.New("Invalid ID")
+// GetMaxSnowflakeID returns the absolute highest possible Snowflake ID.
+func GetMaxSnowflakeID() snowflake.ID {
+	return snowflake.ID(math.MaxInt64)
 }

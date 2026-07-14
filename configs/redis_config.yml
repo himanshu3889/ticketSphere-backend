@@ -16,10 +16,10 @@ bloom_filters:
     capacity: 1000000
     fp_rate: 0.01
 
-  # - key: ticketsphere:bloom:venue:id
-  #   capacity: 1000000
-  #   fp_rate: 0.01
+  - key: ticketsphere:bloom:event:id
+    capacity: 10000000
+    fp_rate: 0.01
 
-  # - key: ticketsphere:bloom:event:id
-  #   capacity: 1000000
-  #   fp_rate: 0.01
+  - key: ticketsphere:bloom:seat:id
+    capacity: 10000000000
+    fp_rate: 0.05

@@ -7,9 +7,11 @@ import (
 )
 
 type Configs struct {
-	App    *AppConfigurations
-	Redis  *RedisConfigurations
-	Server *ServerConfigurations
+	App           *AppConfigurations
+	Redis         *RedisConfigurations
+	RMQ           *RMQConfigurations
+	Server        *ServerConfigurations
+	TracingConfig *TracingConfig
 }
 
 // Initialize all the configs
@@ -35,6 +37,18 @@ func InitializeConfigs(server_yml_file_path string) (*Configs, error) {
 		return nil, err
 	}
 
+	// RMQ configs
+	rmqConfigs, err := initializeRMQConfigs()
+	if err != nil {
+		return nil, err
+	}
+
+	// Tracing configs
+	tracingConfig, err := initializeOTELConfigs()
+	if err != nil {
+		return nil, err
+	}
+
 	// Server configs
 	serverConfigs, err := initializeServerConfigs(server_yml_file_path)
 	if err != nil {
@@ -42,6 +56,12 @@ func InitializeConfigs(server_yml_file_path string) (*Configs, error) {
 	}
 
 	// Build and return the config struct
-	configs := &Configs{App: appConfigs, Redis: redisConfigs, Server: serverConfigs}
+	configs := &Configs{
+		App:           appConfigs,
+		Redis:         redisConfigs,
+		RMQ:           rmqConfigs,
+		Server:        serverConfigs,
+		TracingConfig: tracingConfig,
+	}
 	return configs, nil
 }

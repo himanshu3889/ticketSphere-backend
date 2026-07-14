@@ -28,22 +28,6 @@ mongodb:
   min_pool_size: 2
   max_pool_size: 10
 
-kafka:
-  host: ${KAFKA_HOST}
-  port: ${KAFKA_PORT}
-  brokers:
-    - ${KAFKA_HOST}:${KAFKA_PORT}
-
-debezium:
-  user: ${DEBEZIUM_USER}
-  password: ${DEBEZIUM_PASSWORD}
-
-elasticsearch:
-  host: ${ELASTICSEARCH_HOST}
-  port: ${ELASTICSEARCH_PORT}
-  username: ${ELASTICSEARCH_USERNAME}
-  password: ${ELASTICSEARCH_PASSWORD}
-
 prometheus:
   user: ${PROMETHEUS_USER}
   password: ${PROMETHEUS_PASSWORD}

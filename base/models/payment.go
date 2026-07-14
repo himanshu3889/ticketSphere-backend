@@ -2,6 +2,8 @@ package models
 
 import (
 	"time"
+
+	"github.com/bwmarrin/snowflake"
 )
 
 type PaymentStatus string
@@ -14,8 +16,8 @@ const (
 )
 
 type Payment struct {
-	ID           int64         `json:"id" db:"id"`
-	BookingID    int64         `json:"booking_id" db:"booking_id"`
+	ID           snowflake.ID  `json:"id" db:"id"`
+	BookingID    snowflake.ID  `json:"booking_id" db:"booking_id"`
 	Amount       float64       `json:"amount" db:"amount"`
 	ProviderRef  string        `json:"provider_ref" db:"provider_ref"`
 	Status       PaymentStatus `json:"status" db:"status"`

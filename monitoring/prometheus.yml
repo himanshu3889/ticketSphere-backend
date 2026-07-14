@@ -11,6 +11,8 @@ scrape_configs:
     static_configs:
       # Target: the prometheus container at port 9090
       - targets: ['prometheus:9090']
+        labels:
+          instance: 'prometheus'
 
   # Monitor your API application
   - job_name: 'ticketsphere-gateway'
@@ -18,6 +20,8 @@ scrape_configs:
       # Target: your app at 7000 or app container at port 7000
       # This hits the /metrics endpoint automatically
       - targets: ['host.docker.internal:7777'] 
+        labels:
+          instance: 'ticketsphere-gateway'
     metrics_path: /metrics
     scrape_interval: 15s
 
@@ -25,6 +29,8 @@ scrape_configs:
   - job_name: 'ticketsphere-inventory'
     static_configs:
       - targets: ['host.docker.internal:7010']
+        labels:
+          instance: 'ticketsphere-inventory'
     metrics_path: /metrics
     scrape_interval: 15s
     basic_auth:
@@ -34,6 +40,8 @@ scrape_configs:
   - job_name: 'ticketsphere-booking'
     static_configs:
       - targets: ['host.docker.internal:7020']
+        labels:
+          instance: 'ticketsphere-booking'
     metrics_path: /metrics
     scrape_interval: 15s
     basic_auth:
@@ -41,19 +49,14 @@ scrape_configs:
       password: ${PROMETHEUS_PASSWORD}
 
 
-  # - job_name: 'redis'
-  #   static_configs:
-  #     - targets: ['redis-exporter:9121']
+  - job_name: 'ticketsphere-redis'
+    static_configs:
+      - targets: ['ticketsphere-redis-exporter:9121']
+        labels:
+          instance: 'ticketsphere-redis'
 
-  # - job_name: 'postgres'
-  #   static_configs:
-  #     - targets: ['postgres-exporter:9187']
-
-  # - job_name: 'mongodb'
-  #   static_configs:
-  #     - targets: ['mongodb-exporter:9216']
-
-  # - job_name: 'elasticsearch'
-  #   static_configs:
-  #     - targets: ['elasticsearch-exporter:9114']
-  
+  - job_name: 'ticketsphere-postgres'
+    static_configs:
+      - targets: ['ticketsphere-postgres-exporter:9187']
+        labels:
+          instance: 'ticketsphere-postgres'

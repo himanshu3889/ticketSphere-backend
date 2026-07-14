@@ -5,7 +5,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/himanshu3889/ticketSphere-backend/base/constants"
 	"github.com/himanshu3889/ticketSphere-backend/base/middlewares"
 	"github.com/himanshu3889/ticketSphere-backend/base/models"
 	"github.com/himanshu3889/ticketSphere-backend/base/utils"
@@ -149,6 +148,9 @@ func (apiHandler *ApiHandler) signIn(ctx *gin.Context) {
 	}
 
 	// Check password by comparing input password to stored hashed password
+	// For security purpose, we can use this before finding user by email
+	// To prevent user enumertaion or timing attacks i.e. an attacker can guess the email
+	// by checking the response time
 	if !jwtAuthentication.CheckPasswordHash(incomingUser.Password, user.Password) {
 		utils.RespondWithError(ctx, http.StatusBadRequest, "Invalid password")
 		return
@@ -209,7 +211,7 @@ func (apiHandler *ApiHandler) signout(c *gin.Context) {
 // Get the access token using the refresh Token
 func (apiHandler *ApiHandler) getAccessTokenFromRefresh(ctx *gin.Context) {
 
-	email := ctx.GetString(constants.UserEmailKey)
+	email := ctx.GetString(utils.UserEmailKey)
 
 	// Check if user exists in database and matches
 	user, appErr := apiHandler.cacheStore.GetUserByEmail(ctx, email)

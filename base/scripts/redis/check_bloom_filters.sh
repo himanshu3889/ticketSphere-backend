@@ -19,3 +19,6 @@ check_filter() {
 
 check_filter "ticketsphere:bloom:user:id"
 check_filter "ticketsphere:bloom:user:email"
+check_filter "ticketsphere:bloom:event:id"
+check_filter "ticketsphere:bloom:seat:id"
+

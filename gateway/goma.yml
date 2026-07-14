@@ -110,9 +110,10 @@ middlewares:
       requestsPerUnit: 60
       burst: 20
       banAfter: 5
-      banDuration: 5m
+      banDuration: 2m
       store: redis
-      key: ip
+      keyStrategy:
+        source: ip
 
   - name: rate-limit-user
     type: rateLimit
@@ -122,9 +123,11 @@ middlewares:
       requestsPerUnit: 60
       burst: 20
       banAfter: 5
-      banDuration: 5m
+      banDuration: 30s
       store: redis
-      key: header:X-User-ID
+      keyStrategy:
+        source: header
+        name: X-User-ID
       
   - name: inject-secret
     type: requestHeaders

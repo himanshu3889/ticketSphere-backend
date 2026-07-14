@@ -16,8 +16,9 @@ const (
 )
 
 type Error struct {
-	Message string
-	Code    ErrorCode
+	Message         string
+	Code            ErrorCode
+	InternalMessage *string
 }
 
 // enforces a 400 status
@@ -40,6 +41,14 @@ func NewNotFound(message string) *Error {
 func NewInternal(message string) *Error {
 	return &Error{
 		Code:    StatusInternalServerError,
+		Message: message,
+	}
+}
+
+// enforces a 409
+func NewConflict(message string) *Error {
+	return &Error{
+		Code:    StatusConflict,
 		Message: message,
 	}
 }

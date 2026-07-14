@@ -7,18 +7,20 @@ import (
 
 	"github.com/himanshu3889/ticketSphere-backend/base/infrastructure/redis/bloomFilter"
 	"github.com/himanshu3889/ticketSphere-backend/configs"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
+
+	"github.com/redis/go-redis/extra/redisotel/v9"
 )
 
 // Initialize redis
-func InitRedis(redisConfigs *configs.RedisConfigurations, logger *logrus.Logger) (error, *redis.Client, *CacheManager, *bloomFilter.BloomManager) {
+func InitRedis(redisConfigs *configs.RedisConfigurations, logger *logrus.Logger, traceProvider trace.TracerProvider) (error, *redis.Client, *CacheManager, *bloomFilter.BloomManager) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var redisClient *redis.Client
-	redisClient = redis.NewClient(&redis.Options{
+	redisClient := redis.NewClient(&redis.Options{
 		Addr: fmt.Sprintf("%s:%s",
 			redisConfigs.Host,
 			redisConfigs.Port),
@@ -27,6 +29,12 @@ func InitRedis(redisConfigs *configs.RedisConfigurations, logger *logrus.Logger)
 		PoolSize:     redisConfigs.PoolSize,
 		MinIdleConns: redisConfigs.MinIdleConns,
 	})
+
+	// Instrument the client with OpenTelemetry hooks
+	if err := redisotel.InstrumentTracing(redisClient); err != nil {
+		logger.WithError(err).Fatal("Failed to instrument Redis client with OpenTelemetry")
+		return err, nil, nil, nil
+	}
 
 	// Test connection
 	if err := redisClient.Ping(ctx).Err(); err != nil {
@@ -39,9 +47,9 @@ func InitRedis(redisConfigs *configs.RedisConfigurations, logger *logrus.Logger)
 	if err != nil {
 		return err, nil, nil, nil
 	}
-	cacheManager := initCacheManager(redisClient, bloomManager, logger)
+	cacheManager := initCacheManager(redisClient, bloomManager, logger, traceProvider)
 
-	logger.Info("Redis database connected successfully")
+	logger.Info("Redis database connected successfully (Instrumented with Otel)")
 	return nil, redisClient, cacheManager, bloomManager
 }
 
@@ -60,8 +68,11 @@ func initBloomManager(bloomFilterConfigs []configs.BloomFilterConfig, redisClien
 	return bloom, nil
 }
 
-func initCacheManager(redisClient *redis.Client, bloomManager *bloomFilter.BloomManager, logger *logrus.Logger) *CacheManager {
-	cacheManager := NewCacheManager(redisClient, bloomManager)
+func initCacheManager(redisClient *redis.Client, bloomManager *bloomFilter.BloomManager, logger *logrus.Logger, traceProvider trace.TracerProvider) *CacheManager {
+	cacheManager, err := NewCacheManager(redisClient, bloomManager, logger, traceProvider)
+	if err != nil {
+		logger.WithError(err).Fatal("unable to initialize cache manager")
+	}
 	logger.Info("Global cache initialized")
 	return cacheManager
 }

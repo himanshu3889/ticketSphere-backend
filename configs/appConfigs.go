@@ -43,19 +43,6 @@ type AppConfigurations struct {
 		MaxPoolSize uint64 `yaml:"MaxPoolSize"`
 	} `yaml:"mongodb"`
 
-	Elasticsearch struct {
-		Host     string `yaml:"host"`
-		Port     string `yaml:"port"`
-		Username string `yaml:"username"`
-		Password string `yaml:"password"`
-	} `yaml:"elasticsearch"`
-
-	Kafka struct {
-		Host    string   `yaml:"host"`
-		Port    string   `yaml:"port"`
-		Brokers []string `yaml:"brokers"`
-	} `yaml:"kafka"`
-
 	Prometheus struct {
 		User     string `yaml:"user"`
 		Password string `yaml:"password"`
