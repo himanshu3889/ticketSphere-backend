@@ -9,3 +9,5 @@ tmp
 /scripts
 /testing
 /dummyData
+/temp/
+/gateway/goma.loadtest.yml

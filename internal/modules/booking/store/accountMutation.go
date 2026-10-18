@@ -28,14 +28,14 @@ func (store *Store) CreateUser(ctx context.Context, user *models.User) *appError
 	); err != nil {
 		if utils.IsPgDBUniqueViolationError(err) {
 			store.logger.WithField("email", user.Email).Warn("User already exists in database")
-			return appError.NewBadRequest("User already exists in database")
+			return appError.NewBadRequest("User already exists in database", appError.WithCause(err))
 		}
 		store.logger.WithFields(logrus.Fields{
 			"email":           user.Email,
 			"password_length": len(user.Password),
 			"image_url":       user.ImageUrl,
 		}).WithError(err).Error("Failed to create user")
-		return appError.NewInternal("Failed to create user")
+		return appError.NewInternal("Failed to create user", appError.WithCause(err))
 	}
 	return nil
 }

@@ -9,44 +9,49 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - ./base/cdc/scripts:/scripts
       - postgres_data:/var/lib/postgresql/data
-    command: 
-      - "postgres"
-      - "-c"
-      - "wal_level=logical"
-      - "-c"
-      - "max_wal_senders=10"
-      - "-c"
-      - "max_replication_slots=10"
     ports: ["5432:5432"]
     networks: [ticketsphere-net]
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2G
+    # /dev/shm size
+    shm_size: 256mb
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  mongodb:
-    image: bitnami/mongodb:latest
-    container_name: ticketsphere-mongodb
-    environment:
-      - MONGODB_ROOT_PASSWORD=${MONGODB_ROOT_PASSWORD}
-      - MONGODB_DATABASE=${MONGODB_DATABASE}
-      - MONGODB_USERNAME=${MONGODB_USERNAME}
-      - MONGODB_PASSWORD=${MONGODB_PASSWORD}
-    volumes:
-      - mongodb_data:/bitnami/mongodb
-    ports: ["27017:27017"]
-    networks: [ticketsphere-net]
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
+  # MongoDB disabled (not used by any service right now)
+  # mongodb:
+  #   image: bitnami/mongodb:latest
+  #   container_name: ticketsphere-mongodb
+  #   environment:
+  #     - MONGODB_ROOT_PASSWORD=${MONGODB_ROOT_PASSWORD}
+  #     - MONGODB_DATABASE=${MONGODB_DATABASE}
+  #     - MONGODB_USERNAME=${MONGODB_USERNAME}
+  #     - MONGODB_PASSWORD=${MONGODB_PASSWORD}
+  #   volumes:
+  #     - mongodb_data:/bitnami/mongodb
+  #   ports: ["27017:27017"]
+  #   networks: [ticketsphere-net]
+  #   restart: unless-stopped
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: "2.0"
+  #         memory: 2G
+  #   healthcheck:
+  #     test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 20s
+
 
   redis:
     image: redis/redis-stack:latest
@@ -57,12 +62,18 @@ services:
         --save 900 1
         --save 300 10
         --save 60 10000
-        --appendonly yes
-        --appendfsync no     
-    volumes: [redis_data:/data]
+        --maxmemory ${REDIS_MAXMEMORY:-512mb}
+        --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
     ports: ["6379:6379"]
     networks: [ticketsphere-net]
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 4G  # 2M seats
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
@@ -70,31 +81,10 @@ services:
       retries: 5
       start_period: 20s
 
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:9.2.3
-    container_name: ticketsphere-elasticsearch
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-      - bootstrap.memory_lock=true
-    ulimits: {memlock: {soft: -1, hard: -1}}
-    volumes: [elasticsearch_data:/usr/share/elasticsearch/data]
-    ports: ["9200:9200"]
-    networks: [ticketsphere-net]
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
-
 volumes:
   postgres_data:
-  mongodb_data: 
+  # mongodb_data:   # disabled with the mongodb service above
   redis_data:
-  elasticsearch_data:
 
 networks:
   ticketsphere-net:

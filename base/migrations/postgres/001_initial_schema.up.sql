@@ -30,6 +30,7 @@ CREATE TABLE events (
     name VARCHAR(255) NOT NULL,
     venue_id BIGINT NOT NULL REFERENCES venues(id),
     start_time TIMESTAMPTZ,
+    end_time TIMESTAMPTZ,
     on_sale_time TIMESTAMPTZ,
     status event_status NOT NULL DEFAULT 'ACTIVE',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -57,93 +58,25 @@ CREATE TABLE seats (
     row VARCHAR(10) NOT NULL,
     number VARCHAR(10) NOT NULL,
     status seat_status NOT NULL DEFAULT 'AVAILABLE',
-    version INT NOT NULL DEFAULT 0,
+    version INT NOT NULL DEFAULT 0,  -- for optimistic locking
     price NUMERIC(12,2) NOT NULL DEFAULT 0.00,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- booking status enum
-CREATE TYPE booking_status AS ENUM ('PENDING', 'CONFIRMED', 'FAILED', 'CANCELLED', 'EXPIRED');
 
 
--- bookings table
-CREATE TABLE bookings (
-    id BIGINT PRIMARY KEY, -- Snowflake ID from app
-    event_id BIGINT NOT NULL REFERENCES events(id),
-    seat_ids BIGINT[] NOT NULL DEFAULT '{}',  -- TODO: THINK ABOUT IT
-    user_id BIGINT NOT NULL,
-    status booking_status NOT NULL DEFAULT 'PENDING',
-    total_amount NUMERIC(12,2) NOT NULL DEFAULT 0.00,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    confirmed_at TIMESTAMPTZ,
-    cancelled_at TIMESTAMPTZ,
-    expires_at TIMESTAMPTZ NOT NULL
-);
-
--- booking idempotency key table
-CREATE TABLE booking_idempotency_keys (
-    idempotency_key VARCHAR(255) PRIMARY KEY,  -- uuid from app
-    booking_id BIGINT NOT NULL UNIQUE REFERENCES bookings(id) ON DELETE CASCADE,
-    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    response_body JSONB, -- final response 
-    request_hash VARCHAR(64), -- Optional: Ensures the payload hasn't changed
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP + INTERVAL '7 days'
-);
-
--- payment status enum
-CREATE TYPE payment_status AS ENUM ('PENDING', 'SUCCESS', 'FAILED', 'REFUNDED');
-
-
--- payments table
-CREATE TABLE payments (
-    id BIGINT PRIMARY KEY, -- Snowflake ID from app
-    booking_id BIGINT NOT NULL REFERENCES bookings(id),
-    amount NUMERIC(12,2) NOT NULL DEFAULT 0.00,
-    provider_ref VARCHAR(255),
-    status payment_status NOT NULL DEFAULT 'PENDING',
-    error_message TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    processed_at TIMESTAMPTZ,
-    refunded_at TIMESTAMPTZ
-);
-
--- payment idempotency key table
-CREATE TABLE payment_idempotency_keys (
-    idempotency_key VARCHAR(255) PRIMARY KEY,  -- uuid from app
-    payment_id BIGINT NOT NULL UNIQUE REFERENCES payments(id) ON DELETE CASCADE,
-    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    response_body JSONB, -- final response 
-    request_hash VARCHAR(64), -- Optional: Ensures the payload hasn't changed
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP + INTERVAL '7 days'
-);
-
-
-
--- Create index on events table
-CREATE INDEX idx_events_venue_status ON events(venue_id, status);
-CREATE INDEX idx_events_status ON events(status);
-CREATE INDEX idx_events_onsale ON events(on_sale_time);
+-- Create index on events table; user facing think about the pagination by id
+CREATE INDEX idx_events_venue_status_id ON events(venue_id, status, id DESC);
+CREATE INDEX idx_events_status_id ON events(status, id DESC);
+CREATE INDEX idx_events_onsale_id ON events(on_sale_time, status, id DESC) WHERE status = 'ON_SALE';  
+CREATE INDEX idx_events_start_time_end_time_status_id ON events(start_time, end_time, status, id DESC) WHERE status NOT IN ('CANCELLED', 'COMPLETED');
 
 -- Create index on sections table
 CREATE INDEX idx_sections_event ON sections(event_id);
 
 -- Create index on seats table
-CREATE UNIQUE INDEX idx_event_section_row_number ON seats (event_id, section_id, row, number);
-CREATE INDEX idx_seats_section ON seats(section_id);
-CREATE INDEX idx_seats_available ON seats(event_id, status) WHERE status = 'AVAILABLE';  -- Partial Indexing
-CREATE INDEX idx_seats_status ON seats(status);
+CREATE UNIQUE INDEX idx_seats_event_section_row_number ON seats (event_id, section_id, row, number);
+CREATE INDEX idx_seats_section_status_id ON seats(section_id, status, id DESC) WHERE status IN ('AVAILABLE', 'HELD');  -- Partial Indexing
+CREATE INDEX idx_seats_event_status_id ON seats(event_id, status, id DESC) WHERE status IN ('AVAILABLE', 'HELD');  -- Partial Indexing
+CREATE INDEX idx_seats_status_id ON seats(status, id DESC);
 
--- Create index on bookings table
-CREATE INDEX idx_bookings_event_status ON bookings(event_id, status);
-CREATE INDEX idx_bookings_user ON bookings(user_id);
-CREATE INDEX idx_bookings_status ON bookings(status);
-CREATE INDEX idx_bookings_expires ON bookings(expires_at) WHERE status = 'PENDING';  -- Partial Indexing
-CREATE INDEX idx_bookings_idempotency_user_key ON booking_idempotency_keys(user_id, idempotency_key);
-
--- Create index on payments booking
-CREATE INDEX idx_payments_booking ON payments(booking_id);
-CREATE UNIQUE INDEX idx_payments_idempotency_user_key ON payment_idempotency_keys(user_id, idempotency_key);

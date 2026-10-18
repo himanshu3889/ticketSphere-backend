@@ -1,0 +1,35 @@
+name: ticketsphere
+
+services:
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: ticketsphere-redis-exporter
+    environment:
+      REDIS_ADDR: "redis://ticketsphere-redis:${REDIS_PORT}"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    ports:
+      - "${REDIS_EXPORTER_PORT}:9121"
+    networks: [ticketsphere-net]
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: ticketsphere-postgres-exporter
+    environment:
+      DATA_SOURCE_URI: "ticketsphere-postgres:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable"
+      DATA_SOURCE_USER: ${POSTGRES_USER}
+      DATA_SOURCE_PASS: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_EXPORTER_PORT}:9187"
+    networks: [ticketsphere-net]
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+networks:
+  ticketsphere-net:
+    driver: bridge

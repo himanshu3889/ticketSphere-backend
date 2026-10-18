@@ -10,14 +10,14 @@ import (
 )
 
 type ApiHandler struct {
-	authConfigs *configs.AuthConfigurations
+	authConfigs *configs.AuthConfig
 	cacheStore  *inventoryCacheStore.CacheStore
-	store       *inventoryStore.Store // from the cacheStore so consistency remains
+	store       *inventoryStore.Store // borrowed from the cache store so both share one
 	logger      *logrus.Logger
 }
 
 func New(
-	authConfigs *configs.AuthConfigurations,
+	authConfigs *configs.AuthConfig,
 	cacheStore *inventoryCacheStore.CacheStore,
 	logger *logrus.Logger) (*ApiHandler, error) {
 	if authConfigs == nil {

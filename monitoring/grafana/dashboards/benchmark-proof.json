@@ -1,0 +1,261 @@
+{
+  "uid": "ts-bench-proof",
+  "title": "TicketSphere - Benchmark Proof (burst)",
+  "tags": [
+    "benchmark",
+    "booking"
+  ],
+  "timezone": "browser",
+  "refresh": "5s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "editable": true,
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "title": "How to read this",
+      "options": {
+        "mode": "markdown",
+        "content": "### 3k RPS burst proof\n**Throughput**: bookings land in RabbitMQ (1 msg/booking) -> `messages published / s` should pin at the offered rate.\n**Latency**: `cache_latency_seconds{boundedKey=book_seats}` = full Redis atomic-check-and-lock (client side, incl. pool wait). `redis_commands_latencies` = Redis's own execution time (server truth).\n**Saturation**: booking CPU cores vs rate; projection queue depth must stay flat (drain keeps up).\n\nLaptop PL1 = 55W sustained -> honest ceiling ~1.7-2k/s all-in-one-box. Bursts ride PL2 (4.5+ GHz)."
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 3
+      },
+      "title": "Booking throughput (server truth) - msg/s published to projection queue",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cps",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus"
+          },
+          "expr": "rate(rabbitmq_queue_messages_published_total[30s])",
+          "legendFormat": "bookings/s"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 3
+      },
+      "title": "Atomic check-and-lock latency (book_seats, client-side incl. pool) - ms",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus"
+          },
+          "expr": "histogram_quantile(0.50, sum(rate(cache_latency_seconds_bucket{boundedKey=\"book_seats\"}[30s])) by (le)) * 1000",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum(rate(cache_latency_seconds_bucket{boundedKey=\"book_seats\"}[30s])) by (le)) * 1000",
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus"
+          },
+          "expr": "histogram_quantile(0.99, sum(rate(cache_latency_seconds_bucket{boundedKey=\"book_seats\"}[30s])) by (le)) * 1000",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 11
+      },
+      "title": "Redis EVALSHA server-side latency - ms",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus"
+          },
+          "expr": "histogram_quantile(0.50, sum(rate(redis_commands_latencies_usec_bucket{cmd=\"evalsha\"}[30s])) by (le)) / 1000",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum(rate(redis_commands_latencies_usec_bucket{cmd=\"evalsha\"}[30s])) by (le)) / 1000",
+          "legendFormat": "p95"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 11
+      },
+      "title": "Redis ops/s by command",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus"
+          },
+          "expr": "sum by (cmd) (rate(redis_commands_processed_total[30s]) > 1)",
+          "legendFormat": "{{cmd}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 19
+      },
+      "title": "Booking service CPU (cores)",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus"
+          },
+          "expr": "rate(process_cpu_seconds_total{job=\"ticketsphere-booking\"}[30s])",
+          "legendFormat": "cores"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 19
+      },
+      "title": "Booking goroutines",
+      "fieldConfig": {
+        "defaults": {
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus"
+          },
+          "expr": "go_goroutines{job=\"ticketsphere-booking\"}",
+          "legendFormat": "goroutines"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 19
+      },
+      "title": "Projection queue backlog (must stay ~flat -> drain keeps up)",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus"
+          },
+          "expr": "rabbitmq_queue_messages",
+          "legendFormat": "ready"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus"
+          },
+          "expr": "rate(rabbitmq_queue_messages_ack_total[30s])",
+          "legendFormat": "drain acks/s"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "version": 1
+}

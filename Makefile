@@ -12,11 +12,11 @@ endif
 
 MIGRATE_POSTGRES = migrate -path base/migrations/postgres -database "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)?sslmode=disable"
 
-# Ignore the file system. These are action words, not files.
+# action words, not files
 .PHONY: migrate-post-up migrate-post-down migrate-post-version migrate-post-new
 
 migrate-post-up:
-	$(MIGRATE_POSTGRES) up
+	$(MIGRATE_POSTGRES) up 1
 
 migrate-post-down:
 	$(MIGRATE_POSTGRES) down 1
@@ -34,25 +34,34 @@ migrate-post-new:
 
 
 # Docker project commands
+DB_SERVICES = postgres redis
+MONITORING_SERVICES = prometheus prometheus-config grafana loki redis-exporter postgres-exporter otel-collector tempo
+QUEUE_SERVICES = rabbitmq
 
 up-db:
-	docker compose up -d postgres mongodb redis
+	docker compose rm -f prometheus-config
+	docker compose up -d $(DB_SERVICES)
 
 down-db:
-	docker compose down postgres mongodb redis
+	docker compose down $(DB_SERVICES)
 
 up-mon:
-	docker compose --profile monitoring up -d prometheus grafana loki
+	docker compose rm -f prometheus-config
+	docker compose --profile monitoring up -d $(MONITORING_SERVICES)
 
-# kafka-exporter redis-exporter postgres-exporter mongodb-exporter
 down-mon:
-	docker compose down prometheus grafana loki
+	docker compose down --remove-orphans $(MONITORING_SERVICES) prometheus-config
 
-up-sys:
-	docker compose up -d postgres mongodb redis kafka debezium
 
-down-sys:
-	docker compose down
+up-queue:
+	docker compose up -d $(QUEUE_SERVICES)
+
+down-queue:
+	docker compose down $(QUEUE_SERVICES)
+
+up-sys: up-db up-mon up-queue
+
+down-sys: down-queue down-mon down-db
 
 
 cont-urls:
@@ -66,7 +75,7 @@ cont-urls:
 MIGRATE_REDIS_DIR = base/migrations/redis
 
 # Applying migrations up in the increasing order
-migrate-redis-up:
+migrate-redis-up-all:
 	@echo "Applying Redis migrations (UP)..."
 	@for file in $$(ls $(MIGRATE_REDIS_DIR)/*.up.sh 2>/dev/null | sort); do \
 		echo "=> Running $$file"; \
@@ -74,57 +83,32 @@ migrate-redis-up:
 	done
 
 # Applying migrations down in the decreasing order
-migrate-redis-down:
+migrate-redis-down-all:
 	@echo "Rolling back Redis migrations (DOWN)..."
 	@for file in $$(ls $(MIGRATE_REDIS_DIR)/*.down.sh 2>/dev/null | sort -r); do \
 		echo "=> Reverting $$file"; \
 		bash "$$file" || exit 1; \
 	done
 
+migrate-redis-single:
+	@if [ -z "$(FILE)" ]; then echo "Error: FILE argument is required."; exit 1; fi
+	@echo "Reverting single file: $(FILE)..."
+	@export $$(grep -v '^#' .env | xargs) && bash $(FILE)
 
-# KAKFA Commands
-KAFKA_CONTAINER ?= ticketsphere-kafka
-BOOTSTRAP_SERVER ?= localhost:9092
-
-KAFKA_GROUP_CMD = docker exec -it $(KAFKA_CONTAINER) \
-	/opt/kafka/bin/kafka-consumer-groups.sh \
-	--bootstrap-server $(BOOTSTRAP_SERVER)
-
-KAFKA_CONSUMER_CMD = docker exec -it $(KAFKA_CONTAINER) \
-	/opt/kafka/bin/kafka-console-consumer.sh \
-	--bootstrap-server $(BOOTSTRAP_SERVER)
-
-KAFKA_TOPIC_CMD = docker exec -it $(KAFKA_CONTAINER) \
-	/opt/kafka/bin/kafka-topics.sh \
-	--bootstrap-server $(BOOTSTRAP_SERVER)
-
-kafka-grp:
-	$(KAFKA_GROUP_CMD) $(args)
-
-kafka-grp-describe:
-	$(KAFKA_GROUP_CMD) --describe --group $(group)
-
-kafka-topics:
-	$(KAFKA_TOPIC_CMD) $(args)
-
-kafka-consumer:
-	$(KAFKA_CONSUMER_CMD) $(args)
 
 # GRPC proto builds
 build-proto:
 	protoc --go_out=paths=source_relative:. --go_grpc_out=paths=source_relative:. $(FILE)
 
+# Air commands
 air-inventory:
 	air -c .air.inventory.toml
 
 air-booking:
 	air -c .air.booking.toml
 
-# DEBEZIUM CONNECTOR
-
-deb-status:  # windows curl.exe  ; mac/linux: curl
-	curl.exe -s http://localhost:8083/connectors/ticketsphere-connector/status 
-
+air-payment:
+	air -c .air.payment.toml
 
 # Gateway
 up-gateway:

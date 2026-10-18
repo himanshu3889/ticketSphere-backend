@@ -4,7 +4,6 @@ gateway:
     web:
       address: ":8080"
 
-
   # Will use the tls certificate in future 
   # tls:
   #   certificates:
@@ -15,13 +14,12 @@ gateway:
     level: info
     format: json
 
-  # Connect existing redis stack
+  # existing redis stack container
   redis:
-    addr: "redis:${REDIS_PORT}"  # use the exsting container
+    addr: "redis:${REDIS_PORT}"
     password: ${REDIS_PASSWORD}
     db: ${REDIS_DB}
 
-  # Prometheus metrics
   monitoring:
     enableMetrics: true
     metricsPath: /metrics
@@ -58,15 +56,15 @@ gateway:
         timeout: 10s
       middlewares: ["jwt-auth", "rate-limit-api", "inject-secret"]
 
-    # - name: payment-api
-    #   path: /api/payment
-    #   rewrite: /
-    #   target: ${PAYMENT_API_TARGET}
-    #   healthCheck:
-    #     path: /health-check
-    #     interval: 30s
-    #     timeout: 10s
-    #   middlewares: ["jwt-auth", "rate-limit-api", "inject-secret"]
+    - name: payment-api
+      path: /api/payment
+      rewrite: /
+      target: ${PAYMENT_API_TARGET}
+      healthCheck:
+        path: /health-check
+        interval: 30s
+        timeout: 10s
+      middlewares: ["jwt-auth", "rate-limit-api", "inject-secret"]
 
     # --- Public Services ---
     - name: inventory-api-public
@@ -89,6 +87,16 @@ gateway:
         timeout: 10s
       middlewares: ["rate-limit-api", "inject-secret"]
 
+    # --- Webhooks ---
+    - name: payment-webhook
+      path: /webhook/payment-gateway
+      target: ${PAYMENT_API_TARGET}
+      healthCheck:
+        path: /health-check
+        interval: 30s
+        timeout: 10s
+      middlewares: ["inject-secret"]
+
 middlewares:
   - name: jwt-auth
     type: jwtAuth
@@ -110,9 +118,10 @@ middlewares:
       requestsPerUnit: 60
       burst: 20
       banAfter: 5
-      banDuration: 5m
+      banDuration: 2m
       store: redis
-      key: ip
+      keyStrategy:
+        source: ip
 
   - name: rate-limit-user
     type: rateLimit
@@ -122,17 +131,18 @@ middlewares:
       requestsPerUnit: 60
       burst: 20
       banAfter: 5
-      banDuration: 5m
+      banDuration: 30s
       store: redis
-      key: header:X-User-ID
-      
+      keyStrategy:
+        source: header
+        name: X-User-ID
+
   - name: inject-secret
     type: requestHeaders
     paths: ["/*"]
     rule:
-      setHeaders:  
+      setHeaders:
         X-Gateway-Secret: ${GATEWAY_SECRET}
-
 
   # - name: cors
   #   type: cors

@@ -5,7 +5,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/himanshu3889/ticketSphere-backend/base/constants"
 	"github.com/himanshu3889/ticketSphere-backend/base/middlewares"
 	"github.com/himanshu3889/ticketSphere-backend/base/models"
 	"github.com/himanshu3889/ticketSphere-backend/base/utils"
@@ -60,7 +59,7 @@ func _clearTokenCookies(c *gin.Context) {
 }
 
 // Generate the user session with access and refresh tokens set in headers
-func _generateUserTokens(ctx *gin.Context, authConfigs *configs.AuthConfigurations, user *models.User) (access string, refresh string, err error) {
+func _generateUserTokens(ctx *gin.Context, authConfigs *configs.AuthConfig, user *models.User) (access string, refresh string, err error) {
 	// Generate Access Token
 	refreshToken, err := jwtAuthentication.GenerateToken(authConfigs, user.Email, user.ID, jwtAuthentication.RefreshTokenValidity, jwtAuthentication.RefreshToken)
 	if err != nil {
@@ -73,7 +72,7 @@ func _generateUserTokens(ctx *gin.Context, authConfigs *configs.AuthConfiguratio
 	}
 
 	// Set new cookies
-	_setRefreshTokenCookies(ctx, accessToken, int(jwtAuthentication.AccessTokenValidity), refreshToken, int(jwtAuthentication.RefreshTokenValidity.Seconds()))
+	_setRefreshTokenCookies(ctx, accessToken, int(jwtAuthentication.AccessTokenValidity.Seconds()), refreshToken, int(jwtAuthentication.RefreshTokenValidity.Seconds()))
 	return accessToken, refreshToken, nil
 }
 
@@ -89,7 +88,6 @@ type SignRequest struct {
 func (apiHandler *ApiHandler) signUp(ctx *gin.Context) {
 	var incomingUser SignRequest
 
-	// Bind the json with the user struct
 	if err := ctx.ShouldBindJSON(&incomingUser); err != nil {
 		utils.RespondWithError(ctx, http.StatusBadRequest, err.Error())
 		return
@@ -148,7 +146,7 @@ func (apiHandler *ApiHandler) signIn(ctx *gin.Context) {
 		return
 	}
 
-	// Check password by comparing input password to stored hashed password
+	// compare before trusting the user row; keeps timing/enumeration hints minimal
 	if !jwtAuthentication.CheckPasswordHash(incomingUser.Password, user.Password) {
 		utils.RespondWithError(ctx, http.StatusBadRequest, "Invalid password")
 		return
@@ -209,7 +207,7 @@ func (apiHandler *ApiHandler) signout(c *gin.Context) {
 // Get the access token using the refresh Token
 func (apiHandler *ApiHandler) getAccessTokenFromRefresh(ctx *gin.Context) {
 
-	email := ctx.GetString(constants.UserEmailKey)
+	email := ctx.GetString(utils.UserEmailKey)
 
 	// Check if user exists in database and matches
 	user, appErr := apiHandler.cacheStore.GetUserByEmail(ctx, email)

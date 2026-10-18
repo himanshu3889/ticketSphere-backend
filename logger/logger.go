@@ -14,7 +14,7 @@ import (
 type AntiGlobalHook struct{}
 
 func (h *AntiGlobalHook) Levels() []logrus.Level {
-	return logrus.AllLevels // Catch every single log level
+	return logrus.AllLevels
 }
 
 func (h *AntiGlobalHook) Fire(entry *logrus.Entry) error {
@@ -23,7 +23,6 @@ func (h *AntiGlobalHook) Fire(entry *logrus.Entry) error {
 	return nil
 }
 
-// init runs exactly once when this package is imported anywhere in your app.
 func init() {
 	logrus.AddHook(&AntiGlobalHook{})
 	logrus.SetFormatter(&logrus.TextFormatter{
@@ -32,7 +31,7 @@ func init() {
 }
 
 // New creates and returns a completely independent logger instance.
-func New(configs *configs.Configs) *logrus.Logger {
+func New(appCfg configs.AppConfig, serverCfg configs.ServerConfig, lokiCfg configs.LokiConfig) *logrus.Logger {
 	// Create an isolated logger instance, NOT the global standard logger.
 	log := logrus.New()
 
@@ -42,19 +41,22 @@ func New(configs *configs.Configs) *logrus.Logger {
 
 	log.SetLevel(logrus.DebugLevel) // See everything in development; Dynamic ?
 
-	// Configure Loki options specific to THIS service
+	// include file:line in every entry
+	log.SetReportCaller(true)
+
+	// Per-service Loki hook options
 	opts := lokirus.NewLokiHookOptions().
 		WithStaticLabels(lokirus.Labels{
-			"app":          configs.App.App.Name,
-			"service_name": configs.Server.ServerName,
-			"env":          configs.App.App.Env,
+			"app":          appCfg.Name,
+			"service_name": serverCfg.Name,
+			"env":          appCfg.Env,
 		}).
 		WithLevelMap(lokirus.LevelMap{
 			logrus.PanicLevel: "critical",
 		})
 
 	hook := lokirus.NewLokiHookWithOpts(
-		configs.App.Loki.Url,
+		lokiCfg.Url,
 		opts,
 		logrus.InfoLevel,
 		logrus.WarnLevel,
@@ -63,7 +65,7 @@ func New(configs *configs.Configs) *logrus.Logger {
 	)
 
 	if hook != nil {
-		log.AddHook(hook) // Only hooks onto THIS instance
+		log.AddHook(hook) // this instance only
 	}
 
 	return log

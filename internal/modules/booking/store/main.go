@@ -6,12 +6,14 @@ import (
 	"github.com/bwmarrin/snowflake"
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/singleflight"
 )
 
 type Store struct {
 	PostgresDB    *sqlx.DB
 	SnowflakeNode *snowflake.Node
 	logger        *logrus.Logger
+	RequestGroup  singleflight.Group
 }
 
 func New(postgresDB *sqlx.DB, snowflakeNode *snowflake.Node, logger *logrus.Logger) (*Store, error) {

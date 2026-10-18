@@ -1,18 +1,15 @@
 package middlewares
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/himanshu3889/ticketSphere-backend/base/constants"
 	"github.com/himanshu3889/ticketSphere-backend/base/utils"
 )
 
 // Gateway authentication middleware
 func GatewayAuthMiddleware(gatewaySecret string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		fmt.Print("Gateway middleware secret ", gatewaySecret)
 		// Verify this request came from our gateway
 		headerGatewaySecret := ctx.GetHeader("X-Gateway-Secret")
 		if headerGatewaySecret != gatewaySecret {
@@ -40,8 +37,8 @@ func GatewayAuthMiddleware(gatewaySecret string) gin.HandlerFunc {
 		}
 
 		// Set the contexts from jwt
-		ctx.Set(constants.UserEmailKey, email)
-		ctx.Set(constants.UserIDKey, userID)
+		ctx.Set(utils.UserEmailKey, email)
+		ctx.Set(utils.UserIDKey, userID)
 
 		ctx.Next()
 	}

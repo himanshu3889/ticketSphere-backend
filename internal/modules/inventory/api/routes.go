@@ -5,8 +5,10 @@ import (
 	baseApi "github.com/himanshu3889/ticketSphere-backend/base/api"
 )
 
-func SetupRoutes(r *gin.Engine, h *ApiHandler) {
-	baseGroup := r.Group("")
-	baseApi.RegisterBaseRoutes(baseGroup)
-
+func SetupRoutes(baseApiGroup *gin.RouterGroup, apiHandler *ApiHandler) {
+	baseApi.RegisterBaseRoutes(baseApiGroup)
+	apiHandler.RegisterVenueRoutes(baseApiGroup)
+	apiHandler.RegisterEventsRoutes(baseApiGroup)
+	apiHandler.RegisterSectionRoutes(baseApiGroup)
+	apiHandler.RegisterSeatsRoutes(baseApiGroup)
 }

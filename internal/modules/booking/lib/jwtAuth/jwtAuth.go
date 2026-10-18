@@ -19,8 +19,8 @@ const (
 )
 
 const (
-	AccessTokenValidity  time.Duration = 24 * time.Hour
-	RefreshTokenValidity time.Duration = 7 * 24 * time.Hour
+	AccessTokenValidity  time.Duration = 14 * 24 * time.Hour // for development keep it long
+	RefreshTokenValidity time.Duration = 28 * 24 * time.Hour // for development keep it long
 )
 
 // JWT Claims with Email
@@ -48,7 +48,7 @@ func CheckPasswordHash(password, hash string) bool {
 }
 
 // Generate JWT tokens
-func GenerateToken(authConfigs *configs.AuthConfigurations, email string, userId snowflake.ID, duration time.Duration, tokenType TokenType) (string, error) {
+func GenerateToken(authConfigs *configs.AuthConfig, email string, userId snowflake.ID, duration time.Duration, tokenType TokenType) (string, error) {
 	claims := &JwtClaims{
 		Email:     email,
 		UserId:    userId.String(),

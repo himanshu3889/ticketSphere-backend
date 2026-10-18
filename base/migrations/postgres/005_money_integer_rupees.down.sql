@@ -1,0 +1,4 @@
+ALTER TABLE payments  ALTER COLUMN amount       TYPE NUMERIC(12,2) USING amount::NUMERIC(12,2);
+ALTER TABLE bookings  ALTER COLUMN total_amount TYPE NUMERIC(12,2) USING total_amount::NUMERIC(12,2);
+ALTER TABLE sections  ALTER COLUMN base_price   TYPE NUMERIC(12,2) USING base_price::NUMERIC(12,2);
+ALTER TABLE seats     ALTER COLUMN price        TYPE NUMERIC(12,2) USING price::NUMERIC(12,2);

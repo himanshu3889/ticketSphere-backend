@@ -1,0 +1,1947 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "description": "Go runtime health dashboard covering CPU, memory, garbage collection, scheduling, contention, and file descriptor pressure. The dashboards were generated using [go-mixin](https://github.com/adinhodovic/go-mixin). Open issues and create feature requests in the repository.",
+  "editable": false,
+  "gnetId": 25063,
+  "id": null,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "title": "Overview",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Number of targets currently exposing Go runtime metrics for the selected filters. Use it to confirm scope before comparing totals or averages.",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
+      "id": 2,
+      "options": {
+        "graphMode": "area",
+        "percentChangeColorMode": "standard",
+        "showPercentChange": false
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "count(\n  count(\n    go_info{\n      cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n    }\n  ) by\n  (instance)\n)\n"
+        }
+      ],
+      "title": "Instances",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Average resident memory across the selected targets. Start here for memory-pressure checks: it reflects memory currently resident in RAM and is the fastest way to spot leaks, step changes in working set size, or steady growth that needs a deeper look in Runtime Footprint and Heap Breakdown.",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
+      "id": 3,
+      "options": {
+        "graphMode": "area",
+        "percentChangeColorMode": "standard",
+        "showPercentChange": false
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "avg(\n  process_resident_memory_bytes{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n)\n"
+        }
+      ],
+      "title": "Memory Used",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Total CPU cores consumed by the selected Go processes. Start here for saturation checks: if this climbs unexpectedly, compare it with scheduler latency and then use the per-target CPU panel to see whether one target or the whole fleet is driving the increase.",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
+      "id": 4,
+      "options": {
+        "graphMode": "area",
+        "percentChangeColorMode": "standard",
+        "showPercentChange": false
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum(\n  rate(\n    process_cpu_seconds_total{\n      cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n    }[$__rate_interval]\n  )\n)\n"
+        }
+      ],
+      "title": "CPU Cores",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Current goroutine count across all selected targets. Watch for sharp growth, sustained elevation, or leaks.",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
+      "id": 5,
+      "options": {
+        "graphMode": "area",
+        "percentChangeColorMode": "standard",
+        "showPercentChange": false
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum(\n  go_sched_goroutines_goroutines{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n)\n"
+        }
+      ],
+      "title": "Goroutines",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Runtime settings reported by each target, including Go version, GOMAXPROCS, and GOMEMLIMIT when it is set.",
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": []
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Go Memory Limit"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "id": 6,
+      "options": {
+        "footer": {
+          "enablePagination": true
+        },
+        "sortBy": [
+          {
+            "desc": false,
+            "displayName": "Pod"
+          }
+        ]
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "expr": "sum(\n  go_info{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n) by\n(pod, container, instance, version)\n",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "expr": "sum(\n  go_sched_gomaxprocs_threads{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n) by\n(pod, container, instance)\n",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "expr": "sum(\n  go_gc_gomemlimit_bytes{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  } < 8e18\n) by\n(pod, container, instance)\n",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "title": "Pod Runtime Config",
+      "transformations": [
+        {
+          "id": "merge"
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value #A": true,
+              "job": true
+            },
+            "indexByName": {
+              "Value #A": 4,
+              "Value #B": 5,
+              "Value #C": 6,
+              "container": 2,
+              "instance": 0,
+              "pod": 1,
+              "version": 3
+            },
+            "renameByName": {
+              "Value #A": "Go Version",
+              "Value #B": "Max Procs",
+              "Value #C": "Go Memory Limit",
+              "container": "Container",
+              "instance": "Instance",
+              "pod": "Pod",
+              "version": "Go Version"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 19
+      },
+      "id": 7,
+      "title": "CPU and Scheduling",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "CPU cores consumed by each pod, container, and instance. Use this after the aggregate CPU stat to see whether elevated usage is concentrated in a few hot targets or spread across the fleet, which is often the quickest clue about whether you are dealing with skew, noisy neighbors, or broad workload growth.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "axisSoftMin": 0,
+            "fillOpacity": 100,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 20
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "sum(\n  rate(\n    process_cpu_seconds_total{\n      cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n    }[$__rate_interval]\n  )\n) by\n(pod, container, instance)\n",
+          "legendFormat": "{{ pod }} {{ container }} {{ instance }}"
+        }
+      ],
+      "title": "CPU Usage by Pod / Container / Instance",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Goroutine count by pod, container, and instance. Use it to find which targets are carrying the most concurrency.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "axisSoftMin": 0,
+            "fillOpacity": 100,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 20
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "sum(\n  go_sched_goroutines_goroutines{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n) by\n(pod, container, instance)\n",
+          "legendFormat": "{{ pod }} {{ container }} {{ instance }}"
+        }
+      ],
+      "title": "Goroutines by Pod / Container / Instance",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Runnable goroutines waiting to be scheduled by pod, container, and instance. Growth here points to scheduler backlog on specific targets.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "axisSoftMin": 0,
+            "fillOpacity": 100,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 28
+      },
+      "id": 10,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "sum(\n  go_sched_goroutines_waiting{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n) by\n(pod, container, instance)\n",
+          "legendFormat": "{{ pod }} {{ container }} {{ instance }}"
+        }
+      ],
+      "title": "Runnable Goroutines by Pod / Container / Instance",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Operating system threads used by each Go process, grouped by pod, container, and instance. Use it to spot thread growth from blocking work or cgo.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "axisSoftMin": 0,
+            "fillOpacity": 100,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 28
+      },
+      "id": 11,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "sum(\n  go_threads{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n) by\n(pod, container, instance)\n",
+          "legendFormat": "{{ pod }} {{ container }} {{ instance }}"
+        }
+      ],
+      "title": "Threads by Pod / Container / Instance",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "How long runnable goroutines wait to be scheduled. This is the main contention signal in the dashboard: rising P95 or P99 usually means scheduler pressure, CPU saturation, or overloaded targets, especially when runnable goroutines and thread counts are increasing at the same time.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 10
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 36
+      },
+      "id": 12,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "histogram_quantile(\n  0.95,\n  sum(\n    rate(\n      go_sched_latencies_seconds_bucket{\n        cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n      }[$__rate_interval]\n    )\n  ) by\n  (le)\n)\n",
+          "legendFormat": "P95"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "histogram_quantile(\n  0.99,\n  sum(\n    rate(\n      go_sched_latencies_seconds_bucket{\n        cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n      }[$__rate_interval]\n    )\n  ) by\n  (le)\n)\n",
+          "legendFormat": "P99"
+        }
+      ],
+      "title": "Scheduler Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Share of CPU time spent in garbage collection over time. Start here for GC-pressure checks: it separates brief spikes from sustained GC cost and helps answer whether elevated CPU is coming from application work or from the runtime spending more time reclaiming memory.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 10
+          },
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 36
+      },
+      "id": 13,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "sum(\n  rate(\n    go_cpu_classes_gc_total_cpu_seconds_total{\n      cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n    }[$__rate_interval]\n  )\n)\n/\nsum(\n  rate(\n    go_cpu_classes_total_cpu_seconds_total{\n      cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n    }[$__rate_interval]\n  )\n)\n",
+          "legendFormat": "GC"
+        }
+      ],
+      "title": "GC CPU Ratio",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 44
+      },
+      "id": 14,
+      "title": "Memory",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Resident memory by pod, container, and instance. This is the clearest per-target view of process memory use.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "axisSoftMin": 0,
+            "fillOpacity": 100,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 45
+      },
+      "id": 15,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "sum(\n  process_resident_memory_bytes{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n) by\n(pod, container, instance)\n",
+          "legendFormat": "{{ pod }} {{ container }} {{ instance }}"
+        }
+      ],
+      "title": "Memory Usage by Pod / Container / Instance",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Runtime memory footprint compared with the next GC target and configured memory limit. This is the key interpretation panel for memory pressure: it shows whether current growth still fits within the runtime's expected GC envelope or whether the process is pushing toward its next GC goal or a configured cap such as GOMEMLIMIT.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 10
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 45
+      },
+      "id": 16,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "sum(\n  go_memory_classes_total_bytes{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n)\n",
+          "legendFormat": "Total Runtime Memory"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "max(\n  go_memory_classes_heap_objects_bytes{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n)\n",
+          "legendFormat": "Heap Objects"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "sum(\n  go_memstats_next_gc_bytes{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n)\n",
+          "legendFormat": "Next GC Target"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "max(\n  go_gc_gomemlimit_bytes{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  } < 8e18\n)\n",
+          "legendFormat": "GOMEMLIMIT"
+        }
+      ],
+      "title": "Runtime Footprint",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Heap and runtime memory classes across the selected targets. Use it to see where memory is held, not just the total amount.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "axisSoftMin": 0,
+            "fillOpacity": 100,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 53
+      },
+      "id": 17,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "max(\n  go_memory_classes_heap_free_bytes{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n)\n",
+          "legendFormat": "Heap Free"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "max(\n  go_memory_classes_heap_objects_bytes{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n)\n",
+          "legendFormat": "Heap Objects"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "max(\n  go_memory_classes_heap_released_bytes{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n)\n",
+          "legendFormat": "Heap Released"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "max(\n  go_memory_classes_heap_stacks_bytes{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n)\n",
+          "legendFormat": "Heap Stacks"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "max(\n  go_memory_classes_heap_unused_bytes{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n)\n",
+          "legendFormat": "Heap Unused"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "max(\n  go_memory_classes_os_stacks_bytes{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n)\n",
+          "legendFormat": "OS Stacks"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "max(\n  go_memory_classes_metadata_other_bytes{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n)\n",
+          "legendFormat": "Metadata Other"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "max(\n  go_memory_classes_other_bytes{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n)\n",
+          "legendFormat": "Other"
+        }
+      ],
+      "title": "Heap Breakdown",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Bytes the garbage collector must scan across heap, globals, and stacks. This is a strong proxy for overall GC scan pressure.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 10
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 53
+      },
+      "id": 18,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "max(\n  go_gc_scan_heap_bytes{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n)\n",
+          "legendFormat": "Heap Scan"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "max(\n  go_gc_scan_globals_bytes{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n)\n",
+          "legendFormat": "Global Scan"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "max(\n  go_gc_scan_stack_bytes{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n)\n",
+          "legendFormat": "Stack Scan"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "max(\n  go_gc_scan_total_bytes{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n)\n",
+          "legendFormat": "Total Scan"
+        }
+      ],
+      "title": "GC Scan Pressure",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Heap target for the next GC cycle in total and by pod, container, and instance. Rising targets show the runtime allowing more live heap before collecting.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 10
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 61
+      },
+      "id": 19,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "sum(\n  go_memstats_next_gc_bytes{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n)\n",
+          "legendFormat": "Total"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "sum(\n  go_memstats_next_gc_bytes{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n) by\n(pod, container, instance)\n",
+          "legendFormat": "{{ pod }} {{ container }} {{ instance }}"
+        }
+      ],
+      "title": "Next GC Target",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Allocation size percentiles. Larger allocations can change GC behavior even when allocation counts stay flat.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 10
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 61
+      },
+      "id": 20,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "histogram_quantile(\n  0.95,\n  sum(\n    rate(\n      go_gc_heap_allocs_by_size_bytes_bucket{\n        cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n      }[$__rate_interval]\n    )\n  ) by\n  (le)\n)\n",
+          "legendFormat": "P95"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "histogram_quantile(\n  0.99,\n  sum(\n    rate(\n      go_gc_heap_allocs_by_size_bytes_bucket{\n        cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n      }[$__rate_interval]\n    )\n  ) by\n  (le)\n)\n",
+          "legendFormat": "P99"
+        }
+      ],
+      "title": "Heap Allocation Size",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 69
+      },
+      "id": 21,
+      "title": "Garbage Collection",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "CPU time spent in each GC and scavenger phase when the runtime exposes those metrics. Missing series are normal in some environments.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "axisSoftMin": 0,
+            "fillOpacity": 100,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 70
+      },
+      "id": 22,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "sum(\n  rate(\n    go_cpu_classes_gc_mark_assist_cpu_seconds_total{\n      cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n    }[$__rate_interval]\n  )\n)\n",
+          "legendFormat": "Mark Assist"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "sum(\n  rate(\n    go_cpu_classes_gc_mark_dedicated_cpu_seconds_total{\n      cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n    }[$__rate_interval]\n  )\n)\n",
+          "legendFormat": "Mark Dedicated"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "sum(\n  rate(\n    go_cpu_classes_gc_pause_cpu_seconds_total{\n      cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n    }[$__rate_interval]\n  )\n)\n",
+          "legendFormat": "Pause"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "sum(\n  rate(\n    go_cpu_classes_scavenge_assist_cpu_seconds_total{\n      cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n    }[$__rate_interval]\n  )\n)\n",
+          "legendFormat": "Scavenge Assist"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "sum(\n  rate(\n    go_cpu_classes_scavenge_background_cpu_seconds_total{\n      cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n    }[$__rate_interval]\n  )\n)\n",
+          "legendFormat": "Scavenge Background"
+        }
+      ],
+      "title": "GC CPU Phase",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Garbage collection cycle frequency, split between automatic and forced runs. Use it to see whether pressure comes from steady churn or forced work.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "axisSoftMin": 0,
+            "fillOpacity": 100,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 70
+      },
+      "id": 23,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "sum(\n  increase(\n    go_gc_cycles_automatic_gc_cycles_total{\n      cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n    }[$__rate_interval]\n  )\n)\n",
+          "legendFormat": "Automatic"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "sum(\n  increase(\n    go_gc_cycles_forced_gc_cycles_total{\n      cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n    }[$__rate_interval]\n  )\n)\n",
+          "legendFormat": "Forced"
+        }
+      ],
+      "title": "GC Cycles",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "GC duration quantiles reported by the Go runtime. This complements pause histograms with the runtime's own summary view.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 10
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 78
+      },
+      "id": 24,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "sum(\n  go_gc_duration_seconds{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n) by\n(quantile)\n",
+          "legendFormat": "p{{ quantile }}"
+        }
+      ],
+      "title": "GC Duration by Quantile",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Stop-the-world pause latency percentiles. This is usually the most user-visible GC panel for request-driven services: sustained increases here often correlate with tail-latency regressions even when total GC CPU looks acceptable, so it is a good place to confirm whether GC is affecting service behavior.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 10
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 78
+      },
+      "id": 25,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "histogram_quantile(\n  0.95,\n  sum(\n    rate(\n      go_gc_pauses_seconds_bucket{\n        cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n      }[$__rate_interval]\n    )\n  ) by\n  (le)\n)\n",
+          "legendFormat": "P95"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "histogram_quantile(\n  0.99,\n  sum(\n    rate(\n      go_gc_pauses_seconds_bucket{\n        cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n      }[$__rate_interval]\n    )\n  ) by\n  (le)\n)\n",
+          "legendFormat": "P99"
+        }
+      ],
+      "title": "GC Pause Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Object allocation and free rate. Large gaps between allocs and frees can point to live-heap growth or churn-heavy workloads.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "axisSoftMin": 0,
+            "fillOpacity": 100,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 86
+      },
+      "id": 26,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "max(\n  rate(\n    go_gc_heap_allocs_objects_total{\n      cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n    }[$__rate_interval]\n  )\n)\n",
+          "legendFormat": "Allocs Objects"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "max(\n  rate(\n    go_gc_heap_tiny_allocs_objects_total{\n      cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n    }[$__rate_interval]\n  )\n)\n",
+          "legendFormat": "Tiny Allocs"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "max(\n  rate(\n    go_gc_heap_frees_objects_total{\n      cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n    }[$__rate_interval]\n  )\n)\n",
+          "legendFormat": "Frees Objects"
+        }
+      ],
+      "title": "Heap Object Churn",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Byte allocation and free throughput. Use it to measure how much heap traffic the runtime is processing over time.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "axisSoftMin": 0,
+            "fillOpacity": 100,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 86
+      },
+      "id": 27,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "max(\n  rate(\n    go_gc_heap_allocs_bytes_total{\n      cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n    }[$__rate_interval]\n  )\n)\n",
+          "legendFormat": "Allocs Bytes"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "max(\n  rate(\n    go_gc_heap_frees_bytes_total{\n      cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n    }[$__rate_interval]\n  )\n)\n",
+          "legendFormat": "Frees Bytes"
+        }
+      ],
+      "title": "Heap Byte Churn",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 94
+      },
+      "id": 28,
+      "title": "Contention and OS",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Open file descriptors by pod, container, and instance. Pair it with FD ratio to compare absolute usage with limit pressure.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "axisSoftMin": 0,
+            "fillOpacity": 100,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 95
+      },
+      "id": 29,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "max(\n  process_open_fds{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n) by\n(pod, container, instance)\n",
+          "legendFormat": "{{ pod }} {{ container }} {{ instance }}"
+        }
+      ],
+      "title": "Open File Descriptors by Pod / Container / Instance",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Open file descriptors divided by the configured maximum, grouped by pod, container, and instance. Start here for exhaustion checks: it normalizes raw descriptor usage against each target's limit, makes unlike targets comparable, and shows who is actually closest to running out.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 10
+          },
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 95
+      },
+      "id": 30,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "max(\n  process_open_fds{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n) by\n(pod, container, instance)\n/\nmax(\n  process_max_fds{\n    cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n  }\n) by\n(pod, container, instance)\n",
+          "legendFormat": "{{ pod }} {{ container }} {{ instance }}"
+        }
+      ],
+      "title": "File Descriptor Usage Ratio by Pod / Container / Instance",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Time spent waiting on mutexes by pod, container, and instance. Rising values can indicate lock contention or blocked coordination.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "axisSoftMin": 0,
+            "fillOpacity": 100,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 103
+      },
+      "id": 31,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "sum(\n  rate(\n    go_sync_mutex_wait_total_seconds_total{\n      cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n    }[$__rate_interval]\n  )\n) by\n(pod, container, instance)\n",
+          "legendFormat": "{{ pod }} {{ container }} {{ instance }}"
+        }
+      ],
+      "title": "Mutex Wait by Pod / Container / Instance",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "description": "Rate of cgo callbacks into Go by pod, container, and instance. Use it to explain thread growth, scheduler shifts, or CPU patterns tied to native code.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "fillOpacity": 10
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 103
+      },
+      "id": 32,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "mean",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "v11.4.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "exemplar": false,
+          "expr": "sum(\n  increase(\n    go_cgo_go_to_c_calls_calls_total{\n      cluster=\"$cluster\",\nnamespace=~\"$namespace\",\njob=~\"$job\",\npod=~\"$pod\",\ninstance=~\"$instance\"\n\n\n    }[$__rate_interval]\n  )\n) by\n(pod, container, instance)\n",
+          "legendFormat": "{{ pod }} {{ container }} {{ instance }}"
+        }
+      ],
+      "title": "cgo Calls Rate by Pod / Container / Instance",
+      "type": "timeseries"
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": [
+    "go",
+    "go-runtime",
+    "go-mixin"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": "default",
+          "value": "default"
+        },
+        "label": "Data source",
+        "name": "datasource",
+        "query": "prometheus",
+        "regex": "",
+        "type": "datasource"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "hide": 2,
+        "label": "Cluster",
+        "name": "cluster",
+        "query": "label_values(go_info{}, cluster)",
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "includeAll": true,
+        "label": "Namespace",
+        "multi": true,
+        "name": "namespace",
+        "query": "label_values(go_info{cluster=\"$cluster\"}, namespace)",
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "includeAll": false,
+        "label": "Job",
+        "multi": false,
+        "name": "job",
+        "query": "label_values(go_info{cluster=\"$cluster\", namespace=~\"$namespace\"}, job)",
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "includeAll": true,
+        "label": "Pod",
+        "multi": true,
+        "name": "pod",
+        "query": "label_values(go_info{cluster=\"$cluster\", namespace=~\"$namespace\", job=~\"$job\"}, pod)",
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "includeAll": true,
+        "label": "Container",
+        "multi": true,
+        "name": "container",
+        "query": "label_values(go_info{cluster=\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", pod=~\"$pod\"}, container)",
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "includeAll": true,
+        "label": "Instance",
+        "multi": true,
+        "name": "instance",
+        "query": "label_values(go_info{cluster=\"$cluster\", namespace=~\"$namespace\", job=~\"$job\", pod=~\"$pod\"}, instance)",
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timezone": "utc",
+  "title": "Golang / Overview",
+  "uid": "go-overview-skj2",
+  "version": 1
+}
