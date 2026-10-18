@@ -13,15 +13,15 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 )
 
-// Initialize postgres database
-func InitPostgresDB(appConfigs *configs.AppConfigurations, logger *logrus.Logger) (*sqlx.DB, error) {
+// InitPostgresDB opens the pool through otelsql so queries get traced.
+func InitPostgresDB(pgCfg *configs.PostgresConfig, logger *logrus.Logger) (*sqlx.DB, error) {
 	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		appConfigs.Postgres.Host,
-		appConfigs.Postgres.Port,
-		appConfigs.Postgres.User,
-		appConfigs.Postgres.Password,
-		appConfigs.Postgres.DB,
+		pgCfg.Host,
+		pgCfg.Port,
+		pgCfg.User,
+		pgCfg.Password,
+		pgCfg.DB,
 	)
 
 	// Open the database using otelsql (injects the tracing middleware into the database driver)
@@ -43,9 +43,9 @@ func InitPostgresDB(appConfigs *configs.AppConfigurations, logger *logrus.Logger
 	}
 
 	// Set pool limits
-	postgresDB.SetMaxOpenConns(appConfigs.Postgres.MaxOpenConns)
-	postgresDB.SetMaxIdleConns(appConfigs.Postgres.MaxIdleConns)
-	postgresDB.SetConnMaxLifetime(time.Duration(appConfigs.Postgres.ConnMaxLifetimeMin) * time.Minute)
+	postgresDB.SetMaxOpenConns(pgCfg.MaxOpenConns)
+	postgresDB.SetMaxIdleConns(pgCfg.MaxIdleConns)
+	postgresDB.SetConnMaxLifetime(time.Duration(pgCfg.ConnMaxLifetimeMin) * time.Minute)
 
 	// Register otelsql metrics
 	_, err = otelsql.RegisterDBStatsMetrics(stdDB, otelsql.WithAttributes(

@@ -9,12 +9,12 @@ import (
 )
 
 // Initialize RabbitMQ
-func InitRabbitMQ(appConfigs *configs.RMQConfigurations, logger *logrus.Logger) (*amqp091.Connection, error) {
+func InitRabbitMQ(rmqCfg *configs.RMQConfig, logger *logrus.Logger) (*amqp091.Connection, error) {
 	connString := fmt.Sprintf("amqp://%s:%s@%s:%s/",
-		appConfigs.User,
-		appConfigs.Password,
-		appConfigs.Host,
-		appConfigs.Port,
+		rmqCfg.User,
+		rmqCfg.Password,
+		rmqCfg.Host,
+		rmqCfg.Port,
 	)
 
 	conn, err := amqp091.Dial(connString)

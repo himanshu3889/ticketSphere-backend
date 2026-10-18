@@ -5,7 +5,9 @@ import (
 	"fmt"
 
 	"github.com/bwmarrin/snowflake"
+	"github.com/himanshu3889/ticketSphere-backend/base/constants"
 	redisDatabase "github.com/himanshu3889/ticketSphere-backend/base/infrastructure/redis"
+	"github.com/himanshu3889/ticketSphere-backend/base/keys"
 	"github.com/himanshu3889/ticketSphere-backend/base/models"
 	"github.com/himanshu3889/ticketSphere-backend/base/utils"
 	"github.com/himanshu3889/ticketSphere-backend/base/utils/appError"
@@ -26,10 +28,10 @@ func (cm *CacheStore) GetEvent(ctx context.Context, eventID snowflake.ID) (*mode
 	// Singleflight
 	result, _, _ := cm.Store.RequestGroup.Do(cacheKey, func() (interface{}, error) {
 		event := &models.Event{ID: eventID}
-		eventCacheBoundedKey := event.CacheBoundedKey()
-		eventCacheId := event.CacheIDKey()
-		eventBloomIdBoundedKey := event.BloomFilterIDBoundedKey()
-		eventBloomItemIDKey := event.BloomItemIDKey()
+		eventCacheBoundedKey := keys.EventCacheBoundedKey()
+		eventCacheId := keys.EventCacheIDKey(eventID)
+		eventBloomIdBoundedKey := keys.EventBloomFilterBoundedKey()
+		eventBloomItemIDKey := keys.EventBloomItemIDKey(eventID)
 
 		cacheState, err := cm.CacheManager.GetInto(ctx, eventCacheBoundedKey, eventCacheId, &eventBloomIdBoundedKey, &eventBloomItemIDKey, event)
 		if err != nil {
@@ -52,7 +54,7 @@ func (cm *CacheStore) GetEvent(ctx context.Context, eventID snowflake.ID) (*mode
 		}
 
 		// set data in cache synchronously, if error log it (not return error)
-		eventTTL := dbEvent.CacheIDKeyTTL()
+		eventTTL := keys.EventCacheIDKeyTTL()
 		err = cm.CacheManager.Set(ctx, eventCacheId, &eventBloomIdBoundedKey, &dbEvent, &eventBloomItemIDKey, eventTTL)
 		if err != nil {
 			cm.logger.WithError(err).WithFields(logrus.Fields{"eventID": eventID}).Error("Failed to set event in cache")
@@ -70,17 +72,29 @@ func (cm *CacheStore) GetEvent(ctx context.Context, eventID snowflake.ID) (*mode
 func (cm *CacheStore) GetEventSeats(ctx context.Context, eventID snowflake.ID, seatIDs []snowflake.ID) ([]*models.Seat, *appError.Error) {
 	// Search in bloom filter first for all seatIds
 	// If some not found then invalid request
-	tempSeat := models.Seat{}
-	bloomSeatsIdBoundedKey := tempSeat.BloomFilterIDBoundedKey()
+	bloomSeatsIdBoundedKey := keys.SeatBloomFilterBoundedKey()
 	bloomSeatsItemIdKey := make([]string, len(seatIDs))
 	for i, seatID := range seatIDs {
-		bloomSeatsItemIdKey[i] = tempSeat.BloomItemIDKeySeat(seatID)
+		bloomSeatsItemIdKey[i] = keys.SeatBloomItemIDKey(seatID)
 	}
 
-	matches, err := cm.BloomManager.CheckMulti(ctx, bloomSeatsIdBoundedKey, bloomSeatsItemIdKey)
+	// One pipelined flush: bloom sweep (existence) + MGET (values).
+	cacheBoundedKey := keys.SeatCacheBoundedKey()
+
+	cacheKeys := make([]string, len(seatIDs))
+	seats := make([]*models.Seat, len(cacheKeys))
+	dests := make([]any, len(seats))
+	for i, seatID := range seatIDs {
+		cacheKeys[i] = keys.SeatCacheIDKey(seatID)
+		seat := &models.Seat{}
+		seats[i] = seat
+		dests[i] = seat
+	}
+
+	matches, cacheStates, err := cm.CacheManager.MGetIntoWithBloom(ctx, bloomSeatsIdBoundedKey, bloomSeatsItemIdKey, cacheBoundedKey, cacheKeys, dests)
 	if err != nil {
-		cm.logger.WithError(err).WithFields(logrus.Fields{"eventID": eventID, "seatIDs": seatIDs}).Error("Failed to check seats in bloom filter")
-		return nil, appError.NewInternal("Failed to check seats in bloom filter")
+		cm.logger.WithError(err).WithFields(logrus.Fields{"eventID": eventID, "seatIDs": seatIDs}).Error("Failed to fetch seats (bloom+cache pipeline)")
+		return nil, appError.NewInternal("Failed to get seats from cache")
 	}
 
 	// If any is false in matches, then invalid request
@@ -90,41 +104,23 @@ func (cm *CacheStore) GetEventSeats(ctx context.Context, eventID snowflake.ID, s
 		}
 	}
 
-	// Search in redis key value set
-	cacheBoundedKey := tempSeat.CacheBoundedKey()
-
-	cacheKeys := make([]string, len(seatIDs))
-	seats := make([]*models.Seat, len(cacheKeys))
-	dests := make([]any, len(seats))
-	for i, seatID := range seatIDs {
-		cacheKeys[i] = tempSeat.CacheIDKeySeat(seatID)
-		seat := &models.Seat{}
-		seats[i] = seat
-		dests[i] = seat
-	}
-
-	cacheStates, err := cm.CacheManager.MGetInto(ctx, cacheBoundedKey, cacheKeys, dests)
-	if err != nil {
-		cm.logger.WithError(err).WithFields(logrus.Fields{"eventID": eventID, "seatIDs": seatIDs}).Error("Failed to get seats from cache")
-		return nil, appError.NewInternal("Failed to get seats from cache")
-	}
-
 	// Check valid seats
 	missedSeatsCount := 0
-	for i, seatID := range seatIDs {
-		cacheState := cacheStates[seatID.String()]
+	for i := range seatIDs {
+		// states are keyed by cache key, not seat id
+		cacheState := cacheStates[cacheKeys[i]]
 		if cacheState == redisDatabase.CacheNullBlock || cacheState == redisDatabase.CacheBloomBlock {
-			return nil, appError.NewNotFound(fmt.Sprintf("Seat %d Not Found", seatID))
+			return nil, appError.NewNotFound(fmt.Sprintf("Seat %d Not Found", seatIDs[i]))
 		}
-		if seats[i].EventID != eventID {
-			return nil, appError.NewBadRequest(fmt.Sprintf("Invalid request for seat %s", seatID))
-		}
-		if seats[i].Status != models.SeatStatusAvailable {
-			return nil, appError.NewConflict(fmt.Sprintf("Seat %d is not available", seatID))
-		}
-
 		if cacheState == redisDatabase.CacheMiss {
 			missedSeatsCount++
+			continue
+		}
+		if seats[i].EventID != eventID {
+			return nil, appError.NewBadRequest(fmt.Sprintf("Invalid request for seat %s", seatIDs[i]))
+		}
+		if seats[i].Status != models.SeatStatusAvailable {
+			return nil, appError.NewConflict(fmt.Sprintf("Seat %d is not available", seatIDs[i]))
 		}
 	}
 
@@ -135,8 +131,8 @@ func (cm *CacheStore) GetEventSeats(ctx context.Context, eventID snowflake.ID, s
 
 	// Add the missed ids
 	missedSeatIDs := make([]snowflake.ID, 0, missedSeatsCount)
-	for _, seatID := range seatIDs {
-		cacheState := cacheStates[seatID.String()]
+	for i, seatID := range seatIDs {
+		cacheState := cacheStates[cacheKeys[i]]
 		if cacheState == redisDatabase.CacheMiss {
 			missedSeatIDs = append(missedSeatIDs, seatID)
 		}
@@ -152,22 +148,27 @@ func (cm *CacheStore) GetEventSeats(ctx context.Context, eventID snowflake.ID, s
 	// Add into the key value and bloom filter asynchronously
 	// FIXME: Too many requests trying to write at once causing thundering herd
 	go func() {
-		ctxSet := context.Background()
+		ctxSet := context.WithoutCancel(ctx)
 
 		// Add all to bloom filter
 		bloomItems := make([]string, len(seatsFromDb))
 		for i, seat := range seatsFromDb {
-			bloomItems[i] = seat.BloomItemIDKeySeat(seat.ID)
+			bloomItems[i] = keys.SeatBloomItemIDKey(seat.ID)
 		}
 		cm.BloomManager.AddMulti(ctxSet, bloomSeatsIdBoundedKey, bloomItems)
 
-		// Add all to key value set
-		seatTTL := tempSeat.CacheIDKeyTTL()
+		// Pair each seat with its own key — rows from id = ANY($2) come back in
+		// arbitrary order, so never trust request order here.
+		seatTTL := keys.SeatCacheIDKeyTTL()
+		seatCacheKeys := make([]string, len(seatsFromDb))
 		seatCacheData := make([]interface{}, len(seatsFromDb))
-		for i := range seatsFromDb {
-			seatCacheData[i] = seatsFromDb[i]
+		for i, seat := range seatsFromDb {
+			seatCacheKeys[i] = keys.SeatCacheIDKey(seat.ID)
+			seatCacheData[i] = seat
 		}
-		cm.CacheManager.SetMulti(ctxSet, cacheKeys, seatCacheData, seatTTL)
+		if err := cm.CacheManager.SetMulti(ctxSet, seatCacheKeys, seatCacheData, seatTTL); err != nil {
+			cm.logger.WithError(err).WithFields(logrus.Fields{"seatIDs": missedSeatIDs}).Error("Failed to warm seat cache")
+		}
 	}()
 
 	// If some no found return error
@@ -182,17 +183,33 @@ func (cm *CacheStore) GetEventSeats(ctx context.Context, eventID snowflake.ID, s
 	}
 
 	for i, seatID := range seatIDs {
-		if cacheStates[seatID.String()] == redisDatabase.CacheMiss {
+		if cacheStates[cacheKeys[i]] == redisDatabase.CacheMiss {
 			seats[i] = seatsFromDBMap[seatID.String()]
 		}
 	}
 	return seats, nil
 }
 
+// warmSeatInfoKeys writes the seat info cache synchronously.
+// Cold path only: the booking Lua script returned PRICE_UNAVAILABLE, meaning the
+// info keys were evicted/flushed while the bloom filter still knew the seats
+// (or the event predates cache warming). The script reads prices straight out
+// of this JSON, so re-warming the info cache is the whole fix — no separate
+// price key to keep in sync.
+func (cm *CacheStore) warmSeatInfoKeys(ctx context.Context, seats []*models.Seat) error {
+	seatCacheKeys := make([]string, len(seats))
+	seatData := make([]interface{}, len(seats))
+	for i, seat := range seats {
+		seatCacheKeys[i] = keys.SeatCacheIDKey(seat.ID)
+		seatData[i] = seat
+	}
+	return cm.CacheManager.SetMulti(ctx, seatCacheKeys, seatData, keys.SeatCacheIDKeyTTL())
+}
+
 // Get Event seats total price
-func (cm *CacheStore) GetEventSeatsTotalPrice(ctx context.Context, eventID snowflake.ID, seatIDs []snowflake.ID) (totalPrice float64, appErr *appError.Error) {
+func (cm *CacheStore) GetEventSeatsTotalPrice(ctx context.Context, eventID snowflake.ID, seatIDs []snowflake.ID) (totalPrice int64, appErr *appError.Error) {
 	// Start a custom span!
-	ctx, span := cm.Tracer.Start(ctx, "GetEventSeatsTotalPrice")
+	ctx, span := cm.Tracer.Start(ctx, constants.SpanEventSeatsTotalPrice)
 	defer utils.EndSpanAppErr(span, appErr)
 
 	// Add attributes so you can search by EventID in Grafana

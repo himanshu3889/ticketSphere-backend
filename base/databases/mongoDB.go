@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/himanshu3889/ticketSphere-backend/configs"
@@ -14,27 +15,28 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/go.mongodb.org/mongo-driver/v2/mongo/otelmongo"
 )
 
-// Initialize mongoDB establishes connection and creates indexes
-func InitMongoDB(appConfigs *configs.AppConfigurations, logger *logrus.Logger) (*mongo.Client, *mongo.Database, error) {
+// InitMongoDB connects to MongoDB with the otel monitor attached.
+func InitMongoDB(mongoCfg *configs.MongoConfig, logger *logrus.Logger) (*mongo.Client, *mongo.Database, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	// Configure client
-	username := appConfigs.MongoDB.Username
-	password := appConfigs.MongoDB.Password
-	host := appConfigs.MongoDB.Host
-	port := appConfigs.MongoDB.Port
-	database := appConfigs.MongoDB.Database
+	username := mongoCfg.Username
+	password := mongoCfg.Password
+	host := mongoCfg.Host
+	port := mongoCfg.Port
+	database := mongoCfg.Database
 
-	uri := fmt.Sprintf("mongodb://%s:%s@%s:%s/%s?authSource=%s",
-		username, password, host, port, database, database)
+	creds := url.UserPassword(username, password)
+	uri := fmt.Sprintf("mongodb://%s@%s:%s/%s?authSource=%s",
+		creds.String(), host, port, database, database)
 
 	// Attach the OpenTelemetry Monitor to the client options
 	clientOptions := options.Client().
 		ApplyURI(uri).
 		SetTimeout(10 * time.Second).
-		SetMinPoolSize(appConfigs.MongoDB.MinPoolSize).
-		SetMaxPoolSize(appConfigs.MongoDB.MaxPoolSize).
+		SetMinPoolSize(mongoCfg.MinPoolSize).
+		SetMaxPoolSize(mongoCfg.MaxPoolSize).
 		SetMonitor(otelmongo.NewMonitor()) // <--- This is the magic line
 
 	var mongoClient *mongo.Client
@@ -59,7 +61,7 @@ func InitMongoDB(appConfigs *configs.AppConfigurations, logger *logrus.Logger) (
 	return mongoClient, mongoDB, nil
 }
 
-// DisconnectMongoDB closes the connection gracefully
+// CloseMongoDBConnection disconnects the client; nil-safe.
 func CloseMongoDBConnection(mongoClient *mongo.Client, logger *logrus.Logger) {
 	if mongoClient != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

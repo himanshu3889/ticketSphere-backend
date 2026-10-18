@@ -7,21 +7,18 @@ import (
 )
 
 func (apiHandler *ApiHandler) RegisterSectionRoutes(rg *gin.RouterGroup) {
-	// Section private router group
+	// private section routes (gateway auth)
 	sectionPrivateRg := rg.Group("/sections", middlewares.GatewayAuthMiddleware(apiHandler.authConfigs.GatewaySecret))
 
-	// Get section by ID
 	sectionPrivateRg.GET("/:section_id", apiHandler.GetSectionByID)
 
-	// Get section available seats
 	sectionPrivateRg.GET("/:section_id/seats/avail", apiHandler.GetSectionAvailableSeats)
 
-	// Get section available or held seats
 	sectionPrivateRg.GET("/:section_id/seats/avail-held", apiHandler.GetSectionAvailableOrHeldSeats)
 
 }
 
-// Get section by ID
+// GetSectionByID returns one section by id.
 func (apiHandler *ApiHandler) GetSectionByID(ctx *gin.Context) {
 	sectionIdStr := ctx.Param("section_id")
 	sectionId, err := utils.ValidSnowflakeID(sectionIdStr)

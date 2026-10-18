@@ -9,20 +9,17 @@ import (
 )
 
 func main() {
-	// Load the envs
 	err := godotenv.Load()
 	if err != nil {
 		fmt.Println("No .env file found, relying on system environment variables")
 	}
 
-	serverYmlFilePath := "configs/booking_server_config.yml"
-
-	cfg, err := configs.InitializeConfigs(serverYmlFilePath)
+	cfg, err := configs.Load[configs.BookingConfig]("configs/booking.yml")
 	if err != nil {
 		fmt.Printf("failed to load config: %v", err)
 	}
 
-	customLogger := logger.New(cfg)
+	customLogger := logger.New(cfg.App, cfg.Server, cfg.Loki)
 
 	server, err := NewServer(cfg, customLogger)
 	if err != nil {

@@ -1,11 +1,11 @@
 package inventoryStore
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 
 	"github.com/bwmarrin/snowflake"
-	"github.com/gin-gonic/gin"
 	"github.com/himanshu3889/ticketSphere-backend/base/models"
 	"github.com/himanshu3889/ticketSphere-backend/base/utils"
 	"github.com/himanshu3889/ticketSphere-backend/base/utils/appError"
@@ -13,8 +13,8 @@ import (
 )
 
 // Get seat by ID
-func (store *Store) GetSeatByID(ctx *gin.Context, seat_id snowflake.ID) (*models.Seat, *appError.Error) {
-	query := `SELECT * FROM seats 
+func (store *Store) GetSeatByID(ctx context.Context, seat_id snowflake.ID) (*models.Seat, *appError.Error) {
+	query := `SELECT * FROM seats
 				WHERE id=$1`
 	var seat *models.Seat
 	err := store.PostgresDB.GetContext(ctx, &seat, query, seat_id)
@@ -29,14 +29,14 @@ func (store *Store) GetSeatByID(ctx *gin.Context, seat_id snowflake.ID) (*models
 }
 
 // Get event available seats
-func (store *Store) GetEventAvailableSeats(ctx *gin.Context, event_id snowflake.ID, limit int, cursor snowflake.ID) ([]*models.Seat, *appError.Error) {
+func (store *Store) GetEventAvailableSeats(ctx context.Context, event_id snowflake.ID, limit int, cursor snowflake.ID) ([]*models.Seat, *appError.Error) {
 	limit = min(200, max(10, limit)) // 10 to 200
 	if cursor == 0 {
 		cursor = utils.GetMaxSnowflakeID()
 	}
-	query := `SELECT * FROM seats 
+	query := `SELECT * FROM seats
 				WHERE event_id=$1 AND status='AVAILABLE' AND id < $2
-				ORDER BY id DESC 
+				ORDER BY id DESC
 				LIMIT $3`
 	var seats = make([]*models.Seat, 0)
 	err := store.PostgresDB.SelectContext(ctx, &seats, query, event_id, cursor, limit)
@@ -51,14 +51,14 @@ func (store *Store) GetEventAvailableSeats(ctx *gin.Context, event_id snowflake.
 }
 
 // Get event available or held seats
-func (store *Store) GetEventAvailableOrHeldSeats(ctx *gin.Context, event_id snowflake.ID, limit int, cursor snowflake.ID) ([]*models.Seat, *appError.Error) {
+func (store *Store) GetEventAvailableOrHeldSeats(ctx context.Context, event_id snowflake.ID, limit int, cursor snowflake.ID) ([]*models.Seat, *appError.Error) {
 	limit = min(200, max(10, limit)) // 10 to 200
 	if cursor == 0 {
 		cursor = utils.GetMaxSnowflakeID()
 	}
-	query := `SELECT * FROM seats 
+	query := `SELECT * FROM seats
 				WHERE event_id=$1 AND status IN ('AVAILABLE', 'HELD') AND id < $2
-				ORDER BY id DESC 
+				ORDER BY id DESC
 				LIMIT $3`
 	var seats = make([]*models.Seat, 0)
 	err := store.PostgresDB.SelectContext(ctx, &seats, query, event_id, cursor, limit)
@@ -73,14 +73,14 @@ func (store *Store) GetEventAvailableOrHeldSeats(ctx *gin.Context, event_id snow
 }
 
 // Get section available seats
-func (store *Store) GetSectionAvailableSeats(ctx *gin.Context, section_id snowflake.ID, limit int, cursor snowflake.ID) ([]*models.Seat, *appError.Error) {
+func (store *Store) GetSectionAvailableSeats(ctx context.Context, section_id snowflake.ID, limit int, cursor snowflake.ID) ([]*models.Seat, *appError.Error) {
 	limit = min(200, max(10, limit)) // 10 to 200
 	if cursor == 0 {
 		cursor = utils.GetMaxSnowflakeID()
 	}
-	query := `SELECT * FROM seats 
+	query := `SELECT * FROM seats
 				WHERE section_id=$1 AND status='AVAILABLE' AND id < $2
-				ORDER BY id DESC 
+				ORDER BY id DESC
 				LIMIT $3`
 	var seats = make([]*models.Seat, 0)
 	err := store.PostgresDB.SelectContext(ctx, &seats, query, section_id, cursor, limit)
@@ -95,14 +95,14 @@ func (store *Store) GetSectionAvailableSeats(ctx *gin.Context, section_id snowfl
 }
 
 // Get section available or held seats
-func (store *Store) GetSectionAvailableOrHeldSeats(ctx *gin.Context, section_id snowflake.ID, limit int, cursor snowflake.ID) ([]*models.Seat, *appError.Error) {
+func (store *Store) GetSectionAvailableOrHeldSeats(ctx context.Context, section_id snowflake.ID, limit int, cursor snowflake.ID) ([]*models.Seat, *appError.Error) {
 	limit = min(200, max(10, limit)) // 10 to 200
 	if cursor == 0 {
 		cursor = utils.GetMaxSnowflakeID()
 	}
-	query := `SELECT * FROM seats 
+	query := `SELECT * FROM seats
 				WHERE section_id=$1 AND status IN ('AVAILABLE', 'HELD') AND id < $2
-				ORDER BY id DESC 
+				ORDER BY id DESC
 				LIMIT $3`
 	var seats = make([]*models.Seat, 0)
 	err := store.PostgresDB.SelectContext(ctx, &seats, query, section_id, cursor, limit)

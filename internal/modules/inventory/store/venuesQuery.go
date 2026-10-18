@@ -1,25 +1,25 @@
 package inventoryStore
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 
 	"github.com/bwmarrin/snowflake"
-	"github.com/gin-gonic/gin"
 	"github.com/himanshu3889/ticketSphere-backend/base/models"
 	"github.com/himanshu3889/ticketSphere-backend/base/utils"
 	"github.com/himanshu3889/ticketSphere-backend/base/utils/appError"
 )
 
 // Get all venues
-func (store *Store) GetVenues(ctx *gin.Context, limit int, cursor snowflake.ID) ([]*models.Venue, *appError.Error) {
+func (store *Store) GetVenues(ctx context.Context, limit int, cursor snowflake.ID) ([]*models.Venue, *appError.Error) {
 	limit = min(200, max(10, limit)) // 10 to 200
 	if cursor == 0 {
 		cursor = utils.GetMaxSnowflakeID()
 	}
-	query := `SELECT * FROM venues 
+	query := `SELECT * FROM venues
 				WHERE id < $1
-			ORDER BY id DESC 
+			ORDER BY id DESC
 			LIMIT $2`
 	venues := make([]*models.Venue, 0)
 	err := store.PostgresDB.SelectContext(ctx, &venues, query, cursor, limit)
@@ -34,8 +34,8 @@ func (store *Store) GetVenues(ctx *gin.Context, limit int, cursor snowflake.ID) 
 }
 
 // Get venue by ID
-func (store *Store) GetVenue(ctx *gin.Context, venue_id snowflake.ID) (*models.Venue, *appError.Error) {
-	query := `SELECT * FROM venues 
+func (store *Store) GetVenue(ctx context.Context, venue_id snowflake.ID) (*models.Venue, *appError.Error) {
+	query := `SELECT * FROM venues
 				WHERE id=$1`
 	var venue models.Venue
 	err := store.PostgresDB.GetContext(ctx, &venue, query, venue_id)

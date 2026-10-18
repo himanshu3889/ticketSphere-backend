@@ -1,4 +1,0 @@
-host: ${RABBITMQ_HOST}
-port: ${RABBITMQ_PORT}
-user: ${RABBITMQ_USER}
-password: ${RABBITMQ_PASSWORD}

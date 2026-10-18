@@ -16,13 +16,13 @@ const (
 	RoutingKeyBookingFailed    RMQConstants = "booking.failed"
 
 	// Queue binding patterns (what consumers listen to)
-	// Use # to match all sub-routing keys under booking.*
 	BindingKeyBookingAll RMQConstants = "booking.#"
 )
 
 // Queue names
 const (
-	QueueBookingPostgres RMQConstants = "booking.postgres.queue"
-	QueueBookingMongoDB  RMQConstants = "booking.mongodb.queue"
-	QueueBookingRedis    RMQConstants = "booking.redis.queue"
+	QueueBookingPostgres      RMQConstants = "booking.postgres.queue"
+	QueueBookingMongoDB       RMQConstants = "booking.mongodb.queue"
+	QueueBookingPaymentEvents RMQConstants = "booking.payment.events.queue"
+	QueueBookingDLQ           RMQConstants = "booking.dlq"
 )

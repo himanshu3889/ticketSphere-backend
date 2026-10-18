@@ -1,19 +1,19 @@
 package inventoryStore
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 
 	"github.com/bwmarrin/snowflake"
-	"github.com/gin-gonic/gin"
 	"github.com/himanshu3889/ticketSphere-backend/base/models"
 	"github.com/himanshu3889/ticketSphere-backend/base/utils"
 	"github.com/himanshu3889/ticketSphere-backend/base/utils/appError"
 )
 
 // Get event
-func (store *Store) GetEvent(ctx *gin.Context, eventID snowflake.ID) (*models.Event, *appError.Error) {
-	query := `SELECT * FROM events 
+func (store *Store) GetEvent(ctx context.Context, eventID snowflake.ID) (*models.Event, *appError.Error) {
+	query := `SELECT * FROM events
 				WHERE id=$1`
 	var event models.Event
 	err := store.PostgresDB.GetContext(ctx, &event, query, eventID)
@@ -28,11 +28,11 @@ func (store *Store) GetEvent(ctx *gin.Context, eventID snowflake.ID) (*models.Ev
 }
 
 // Get venue latest events
-func (store *Store) GetVenueEvents(ctx *gin.Context, venue_id snowflake.ID, limit int, cursor snowflake.ID) ([]*models.Event, *appError.Error) {
+func (store *Store) GetVenueEvents(ctx context.Context, venue_id snowflake.ID, limit int, cursor snowflake.ID) ([]*models.Event, *appError.Error) {
 	limit = min(200, max(10, limit)) // 10 to 200
-	query := `SELECT * FROM events 
+	query := `SELECT * FROM events
 				WHERE venue_id=$1 AND id < $2
-				ORDER BY id DESC 
+				ORDER BY id DESC
 			LIMIT $3`
 	var events []*models.Event
 	err := store.PostgresDB.SelectContext(ctx, &events, query, venue_id, cursor, limit)
@@ -47,14 +47,14 @@ func (store *Store) GetVenueEvents(ctx *gin.Context, venue_id snowflake.ID, limi
 }
 
 // Get all latest events
-func (store *Store) GetAllEvents(ctx *gin.Context, limit int, cursor snowflake.ID) ([]*models.Event, *appError.Error) {
+func (store *Store) GetAllEvents(ctx context.Context, limit int, cursor snowflake.ID) ([]*models.Event, *appError.Error) {
 	limit = min(200, max(10, limit)) // 10 to 200
 	if cursor == 0 {
 		cursor = utils.GetMaxSnowflakeID()
 	}
-	query := `SELECT * FROM events 
+	query := `SELECT * FROM events
 			WHERE id < $1
-			ORDER BY id DESC 
+			ORDER BY id DESC
 			LIMIT $2`
 	var events = make([]*models.Event, 0)
 	err := store.PostgresDB.SelectContext(ctx, &events, query, cursor, limit)
@@ -69,15 +69,15 @@ func (store *Store) GetAllEvents(ctx *gin.Context, limit int, cursor snowflake.I
 }
 
 // Get upcoming or live events
-func (store *Store) GetUpcomingOrLiveEvents(ctx *gin.Context, limit int, cursor snowflake.ID) ([]*models.Event, *appError.Error) {
+func (store *Store) GetUpcomingOrLiveEvents(ctx context.Context, limit int, cursor snowflake.ID) ([]*models.Event, *appError.Error) {
 	limit = min(200, max(10, limit)) // 10 to 200
 	if cursor == 0 {
 		cursor = utils.GetMaxSnowflakeID()
 	}
-	query := `SELECT * FROM events 
+	query := `SELECT * FROM events
 				WHERE (start_time >= NOW() OR end_time >= NOW())
 					AND status NOT IN ('COMPLETED', 'CANCELLED') AND id < $1
-			ORDER BY id DESC 
+			ORDER BY id DESC
 			LIMIT $2`
 	var events []*models.Event
 	err := store.PostgresDB.SelectContext(ctx, &events, query, cursor, limit)
@@ -92,16 +92,16 @@ func (store *Store) GetUpcomingOrLiveEvents(ctx *gin.Context, limit int, cursor 
 }
 
 // Get venue upcoming or live events
-func (store *Store) GetVenueUpcomingOrLiveEvents(ctx *gin.Context, venue_id snowflake.ID, limit int, cursor snowflake.ID) ([]*models.Event, *appError.Error) {
+func (store *Store) GetVenueUpcomingOrLiveEvents(ctx context.Context, venue_id snowflake.ID, limit int, cursor snowflake.ID) ([]*models.Event, *appError.Error) {
 	limit = min(200, max(10, limit)) // 10 to 200
 	if cursor == 0 {
 		cursor = utils.GetMaxSnowflakeID()
 	}
 	// query is build according to the indexing
-	query := `SELECT * FROM events 
+	query := `SELECT * FROM events
 				WHERE (start_time >= NOW() OR end_time >= NOW())
 					AND status NOT IN ('COMPLETED', 'CANCELLED') AND venue_id=$1 AND id < $2
-			ORDER BY id DESC 
+			ORDER BY id DESC
 			LIMIT $3`
 	var events []*models.Event
 	err := store.PostgresDB.SelectContext(ctx, &events, query, venue_id, cursor, limit)

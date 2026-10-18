@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// bloomState is unexported; used strictly for internal Prometheus labels
+// BloomState exists for the Prometheus labels.
 type BloomState int
 
 const (
@@ -20,7 +20,7 @@ const (
 	bloomError
 )
 
-// String satisfies the label requirement for Prometheus
+// String returns the Prometheus label value.
 func (s BloomState) String() string {
 	switch s {
 	case bloomMightExist:
@@ -87,7 +87,7 @@ func NewBloomManager(client *redis.Client, configs []baseConfigs.BloomFilterConf
 	return m, nil
 }
 
-// getConfig retrieves config for a key - no locks needed since configs are immutable
+// configs map is immutable after construction, so no locking
 func (bm *BloomManager) getConfig(key baseConfigs.BloomFilterKey) (baseConfigs.BloomFilterConfig, bool) {
 	cfg, exists := bm.configs[key]
 	return cfg, exists
@@ -186,7 +186,7 @@ func (bm *BloomManager) Stats(ctx context.Context, bloomFilterKey baseConfigs.Bl
 	return count, nil
 }
 
-// Clear removes a bloom filter entirely
+// Clear deletes the whole filter key.
 func (bm *BloomManager) Clear(ctx context.Context, bloomFilterKey baseConfigs.BloomFilterKey) error {
 	if _, exists := bm.getConfig(bloomFilterKey); !exists {
 		return fmt.Errorf("unknown filter key: %s", bloomFilterKey)
@@ -203,9 +203,8 @@ func (bm *BloomManager) ListFilters() []baseConfigs.BloomFilterKey {
 	return keys
 }
 
-// Builds and executes a pipeline for bulk bloom filter operations
-// using a fetcher function to stream items with offset tracking.
-// The caller is responsible for managing offset/pagination.
+// BloomPipelineBuilder rebuilds a filter from fetcher pages (caller owns the offset),
+// writing into a temp key and atomically swapping it live at the end.
 func (bm *BloomManager) BloomPipelineBuilder(
 	ctx context.Context,
 	bloomFilterKey baseConfigs.BloomFilterKey,

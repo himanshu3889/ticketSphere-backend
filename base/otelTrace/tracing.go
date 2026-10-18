@@ -15,7 +15,7 @@ import (
 )
 
 // initializes the OpenTelemetry tracer provider and sets it globally
-func InitTracer(ctx context.Context, cfg *configs.TracingConfig) (*sdktrace.TracerProvider, error) {
+func InitTracer(ctx context.Context, cfg *configs.OTELConfig) (*sdktrace.TracerProvider, error) {
 	// Create exporter
 	exporter, err := otlptracegrpc.New(ctx,
 		otlptracegrpc.WithEndpoint(cfg.OTLPEndpoint),
@@ -49,7 +49,7 @@ func InitTracer(ctx context.Context, cfg *configs.TracingConfig) (*sdktrace.Trac
 		)),
 	)
 
-	// This enables TraceContext (W3C standard) to be injected/extracted across services
+	// propagate the W3C trace context + baggage across services
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
 		propagation.TraceContext{}, // W3C trace context
 		propagation.Baggage{},      // W3C baggage

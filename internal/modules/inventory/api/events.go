@@ -7,27 +7,21 @@ import (
 )
 
 func (apiHandler *ApiHandler) RegisterEventsRoutes(rg *gin.RouterGroup) {
-	// ---- Event public router group ----
+	// public event routes
 	eventPublicRg := rg.Group("/public/events")
-	// Get all events
 	eventPublicRg.GET("", apiHandler.GetAllEvents)
-	// Get event
 	eventPublicRg.GET("/:event_id", apiHandler.GetEvent)
-	// Get upcoming or live events
 	eventPublicRg.GET("/upcoming-or-live", apiHandler.GetUpcomingOrLiveEvents)
-	// Get event sections
 	eventPublicRg.GET("/:event_id/sections", apiHandler.GetEventSections)
 
-	// ---- Event Private routes ----
+	// private event routes (gateway auth)
 	eventPrivateRg := rg.Group("/events", middlewares.GatewayAuthMiddleware(apiHandler.authConfigs.GatewaySecret))
-	// Get event available or held seats
 	eventPrivateRg.GET("/:event_id/seats/avail-held", apiHandler.GetEventAvailableOrHeldSeats)
-	// Get event available seats
 	eventPrivateRg.GET("/:event_id/seats/avail", apiHandler.GetEventAvailableSeats)
 
 }
 
-// Get all events
+// GetAllEvents lists events, newest first.
 func (apiHandler *ApiHandler) GetAllEvents(ctx *gin.Context) {
 	limit, cursor, ok := utils.GetCursorPagination(ctx)
 	if !ok {
@@ -48,9 +42,8 @@ func (apiHandler *ApiHandler) GetAllEvents(ctx *gin.Context) {
 	utils.RespondWithSuccess(ctx, 200, apiData)
 }
 
-// Get event
+// GetEvent returns one event by id.
 func (apiHandler *ApiHandler) GetEvent(ctx *gin.Context) {
-	// Validate the event_id
 	eventIdStr := ctx.Param("event_id")
 	eventId, err := utils.ValidSnowflakeID(eventIdStr)
 	if err != nil {
@@ -68,7 +61,7 @@ func (apiHandler *ApiHandler) GetEvent(ctx *gin.Context) {
 	utils.RespondWithSuccess(ctx, 200, apiData)
 }
 
-// Get upcoming or live events
+// GetUpcomingOrLiveEvents lists events that haven't ended or been cancelled.
 func (apiHandler *ApiHandler) GetUpcomingOrLiveEvents(ctx *gin.Context) {
 	limit, cursor, ok := utils.GetCursorPagination(ctx)
 	if !ok {
@@ -89,9 +82,8 @@ func (apiHandler *ApiHandler) GetUpcomingOrLiveEvents(ctx *gin.Context) {
 	utils.RespondWithSuccess(ctx, 200, apiData)
 }
 
-// Get event sections
+// GetEventSections lists an event's sections.
 func (apiHandler *ApiHandler) GetEventSections(ctx *gin.Context) {
-	// Validate the event_id
 	eventIdStr := ctx.Param("event_id")
 	eventId, err := utils.ValidSnowflakeID(eventIdStr)
 	if err != nil {
@@ -117,9 +109,8 @@ func (apiHandler *ApiHandler) GetEventSections(ctx *gin.Context) {
 	utils.RespondWithSuccess(ctx, 200, apiData)
 }
 
-// Get event available or held seats
+// GetEventAvailableOrHeldSeats lists an event's available or held seats.
 func (apiHandler *ApiHandler) GetEventAvailableOrHeldSeats(ctx *gin.Context) {
-	// Validate the event_id
 	eventIdStr := ctx.Param("event_id")
 	eventId, err := utils.ValidSnowflakeID(eventIdStr)
 	if err != nil {
@@ -148,9 +139,8 @@ func (apiHandler *ApiHandler) GetEventAvailableOrHeldSeats(ctx *gin.Context) {
 	utils.RespondWithSuccess(ctx, 200, apiData)
 }
 
-// Get event available seats
+// GetEventAvailableSeats lists an event's available seats.
 func (apiHandler *ApiHandler) GetEventAvailableSeats(ctx *gin.Context) {
-	// Validate the event_id
 	eventIdStr := ctx.Param("event_id")
 	eventId, err := utils.ValidSnowflakeID(eventIdStr)
 	if err != nil {

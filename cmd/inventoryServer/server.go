@@ -15,7 +15,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 
-	"github.com/himanshu3889/ticketSphere-backend/base/databases"
+	database "github.com/himanshu3889/ticketSphere-backend/base/databases"
 	redisDatabase "github.com/himanshu3889/ticketSphere-backend/base/infrastructure/redis"
 	"github.com/himanshu3889/ticketSphere-backend/base/infrastructure/redis/bloomFilter"
 	"github.com/himanshu3889/ticketSphere-backend/base/middlewares"
@@ -39,33 +39,32 @@ type Server struct {
 	logger       *logrus.Logger
 }
 
-func NewServer(cfg *configs.Configs, logger *logrus.Logger) (*Server, error) {
+func NewServer(cfg *configs.InventoryConfig, logger *logrus.Logger) (*Server, error) {
 	logger.Info("Creating new server...")
 
 	srvr := &Server{
-		addr:   cfg.Server.Addr,
+		addr:   cfg.Server.Address(),
 		logger: logger,
 	}
 
 	// Tracing providers
-	inventoryTp, err := otelTrace.InitTracer(context.Background(), cfg.TracingConfig)
+	inventoryTp, err := otelTrace.InitTracer(context.Background(), &cfg.OTEL)
 	if err != nil {
 		return nil, err
 	}
 
 	// Init Postgres
-	srvr.postgresDB, err = database.InitPostgresDB(cfg.App, srvr.logger)
+	srvr.postgresDB, err = database.InitPostgresDB(&cfg.Postgres, srvr.logger)
 	if err != nil {
 		return nil, err
 	}
 
 	// Init Redis
-	err, srvr.redisClient, srvr.cacheManager, srvr.bloomManager = redisDatabase.InitRedis(cfg.Redis, srvr.logger, inventoryTp)
+	err, srvr.redisClient, srvr.cacheManager, srvr.bloomManager = redisDatabase.InitRedis(&cfg.Redis, srvr.logger, inventoryTp)
 	if err != nil {
 		return nil, err
 	}
 
-	// Init Snowflake
 	snowflakeNode, err := utils.InitSnowflake(cfg.Server.MachineID, srvr.logger)
 	if err != nil {
 		return nil, err
@@ -80,7 +79,7 @@ func NewServer(cfg *configs.Configs, logger *logrus.Logger) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	apiHandler, err := inventoryApi.New(&cfg.App.Auth, cachedStore, srvr.logger)
+	apiHandler, err := inventoryApi.New(&cfg.Auth, cachedStore, srvr.logger)
 	if err != nil {
 		return nil, err
 	}
@@ -88,15 +87,15 @@ func NewServer(cfg *configs.Configs, logger *logrus.Logger) (*Server, error) {
 	// Wire routes
 	router := gin.New()
 
-	// Prometheus Metrics, a protected group for Prometheus
+	// /metrics behind basic auth
 	metricsGroup := router.Group("/", gin.BasicAuth(gin.Accounts{
-		cfg.App.Prometheus.User: cfg.App.Prometheus.Password,
+		cfg.Prometheus.User: cfg.Prometheus.Password,
 	}))
 	metricsGroup.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	// Group for all API routes
+	// API routes guarded by the gateway secret
 	baseApiGroup := router.Group("")
-	baseApiGroup.Use(middlewares.GatewayTrafficMiddleware(cfg.App.Auth.GatewaySecret))
+	baseApiGroup.Use(middlewares.GatewayTrafficMiddleware(cfg.Auth.GatewaySecret))
 	baseApiGroup.Use(middlewares.RequestIDMiddleware())
 	baseApiGroup.Use(gin.Recovery())
 
@@ -125,7 +124,6 @@ func (srvr *Server) Shutdown(ctx context.Context) error {
 }
 
 func (srvr *Server) Run() {
-	// Start HTTP server
 	go func() {
 		if err := srvr.start(); err != nil && err != http.ErrServerClosed {
 			srvr.logger.Fatalf("Inventory server error: %v", err)
@@ -133,7 +131,6 @@ func (srvr *Server) Run() {
 		srvr.logger.Info("Inventory server started successfully")
 	}()
 
-	// Wait for signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
@@ -147,7 +144,6 @@ func (srvr *Server) Run() {
 		srvr.logger.Errorf("Shutdown error: %v", err)
 	}
 
-	// Close all connections
 	if err := database.ClosePostgresConnection(srvr.postgresDB); err != nil {
 		srvr.logger.Errorf("Postgres close error: %v", err)
 	}

@@ -1,11 +1,11 @@
 package inventoryStore
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 
 	"github.com/bwmarrin/snowflake"
-	"github.com/gin-gonic/gin"
 	"github.com/himanshu3889/ticketSphere-backend/base/models"
 	"github.com/himanshu3889/ticketSphere-backend/base/utils"
 	"github.com/himanshu3889/ticketSphere-backend/base/utils/appError"
@@ -13,8 +13,8 @@ import (
 )
 
 // Get section by ID
-func (store *Store) GetSectionByID(ctx *gin.Context, section_id snowflake.ID) (*models.Section, *appError.Error) {
-	query := `SELECT * FROM sections 
+func (store *Store) GetSectionByID(ctx context.Context, section_id snowflake.ID) (*models.Section, *appError.Error) {
+	query := `SELECT * FROM sections
 				WHERE id=$1`
 	var section models.Section
 	err := store.PostgresDB.GetContext(ctx, &section, query, section_id)
@@ -29,14 +29,14 @@ func (store *Store) GetSectionByID(ctx *gin.Context, section_id snowflake.ID) (*
 }
 
 // Get event all sections
-func (store *Store) GetEventAllSections(ctx *gin.Context, event_id snowflake.ID, limit int, cursor snowflake.ID) ([]*models.Section, *appError.Error) {
+func (store *Store) GetEventAllSections(ctx context.Context, event_id snowflake.ID, limit int, cursor snowflake.ID) ([]*models.Section, *appError.Error) {
 	limit = min(200, max(10, limit)) // 10 to 200
 	if cursor == 0 {
 		cursor = utils.GetMaxSnowflakeID()
 	}
-	query := `SELECT * FROM sections 
-				WHERE event_id=$1 AND id < $2 
-			ORDER BY id DESC 
+	query := `SELECT * FROM sections
+				WHERE event_id=$1 AND id < $2
+			ORDER BY id DESC
 			LIMIT $3`
 	var sections = make([]*models.Section, 0)
 	err := store.PostgresDB.SelectContext(ctx, &sections, query, event_id, cursor, limit)

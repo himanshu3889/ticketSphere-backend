@@ -1,7 +1,6 @@
 name: ticketsphere
 
 services:
-  # Redis Exporter
   redis-exporter:
     image: oliver006/redis_exporter:latest
     container_name: ticketsphere-redis-exporter
@@ -16,7 +15,6 @@ services:
       redis:
         condition: service_healthy
 
-  # PostgreSQL Exporter
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:latest
     container_name: ticketsphere-postgres-exporter
@@ -31,7 +29,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-
 
 networks:
   ticketsphere-net:

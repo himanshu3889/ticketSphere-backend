@@ -2,7 +2,7 @@ package baseRabbitMQ
 
 import "github.com/rabbitmq/amqp091-go"
 
-// Carrier adapter so OpenTelemetry knows how to write to RabbitMQ's amqp Table
+// AMQPHeaderCarrier adapts amqp.Table to otel's propagation carrier.
 type AMQPHeaderCarrier amqp091.Table
 
 func (c AMQPHeaderCarrier) Get(key string) string {

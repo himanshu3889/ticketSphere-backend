@@ -16,7 +16,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 
-	"github.com/himanshu3889/ticketSphere-backend/base/databases"
+	database "github.com/himanshu3889/ticketSphere-backend/base/databases"
 	baseRabbitMQ "github.com/himanshu3889/ticketSphere-backend/base/infrastructure/rabbitmq"
 	redisDatabase "github.com/himanshu3889/ticketSphere-backend/base/infrastructure/redis"
 	"github.com/himanshu3889/ticketSphere-backend/base/infrastructure/redis/bloomFilter"
@@ -42,49 +42,48 @@ type Server struct {
 	cacheManager       *redisDatabase.CacheManager
 	bloomManager       *bloomFilter.BloomManager
 	rabbitMQConnection *amqp091.Connection
+	stopConsumers      func(ctx context.Context) error
 	logger             *logrus.Logger
 }
 
-func NewServer(cfg *configs.Configs, logger *logrus.Logger) (*Server, error) {
+func NewServer(cfg *configs.BookingConfig, logger *logrus.Logger) (*Server, error) {
 	logger.Info("Creating new server...")
 
 	srvr := &Server{
-		addr:   cfg.Server.Addr,
+		addr:   cfg.Server.Address(),
 		logger: logger,
 	}
 
 	// Tracing providers
-	bookingTp, err := otelTrace.InitTracer(context.Background(), cfg.TracingConfig)
+	bookingTp, err := otelTrace.InitTracer(context.Background(), &cfg.OTEL)
 	if err != nil {
 		return nil, err
 	}
 
 	// Init Postgres
-	srvr.postgresDB, err = database.InitPostgresDB(cfg.App, srvr.logger)
+	srvr.postgresDB, err = database.InitPostgresDB(&cfg.Postgres, srvr.logger)
 	if err != nil {
 		return nil, err
 	}
 
 	// Init Redis
-	err, srvr.redisClient, srvr.cacheManager, srvr.bloomManager = redisDatabase.InitRedis(cfg.Redis, srvr.logger, bookingTp)
+	err, srvr.redisClient, srvr.cacheManager, srvr.bloomManager = redisDatabase.InitRedis(&cfg.Redis, srvr.logger, bookingTp)
 	if err != nil {
 		return nil, err
 	}
 
-	// Init Snowflake
 	snowflakeNode, err := utils.InitSnowflake(cfg.Server.MachineID, srvr.logger)
 	if err != nil {
 		return nil, err
 	}
 
 	// RabbitMQ stuffs
-	conn, err := baseRabbitMQ.InitRabbitMQ(cfg.RMQ, srvr.logger)
+	conn, err := baseRabbitMQ.InitRabbitMQ(&cfg.RMQ, srvr.logger)
 	if err != nil {
 		return nil, err
 	}
 	srvr.rabbitMQConnection = conn
 
-	// Producers
 	eventBus := bookingRMQ.GetEventBus(conn, srvr.logger, bookingTp)
 
 	// Build booking module bottom-up
@@ -97,26 +96,25 @@ func NewServer(cfg *configs.Configs, logger *logrus.Logger) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	apiHandler, err := bookingApi.New(&cfg.App.Auth, cachedStore, srvr.logger)
+	apiHandler, err := bookingApi.New(&cfg.Auth, cachedStore, srvr.logger)
 	if err != nil {
 		return nil, err
 	}
 
-	// Start the booking consumers
-	bookingConsumers.StartConsumers(srvr.rabbitMQConnection, cachedStore, srvr.logger, bookingTp)
+	srvr.stopConsumers = bookingConsumers.StartConsumers(srvr.rabbitMQConnection, cachedStore, srvr.logger, bookingTp, cfg.RMQ)
 
 	// Wire routes
 	router := gin.New()
 
-	// Prometheus Metrics, a protected group for Prometheus
+	// /metrics behind basic auth
 	metricsGroup := router.Group("/", gin.BasicAuth(gin.Accounts{
-		cfg.App.Prometheus.User: cfg.App.Prometheus.Password,
+		cfg.Prometheus.User: cfg.Prometheus.Password,
 	}))
 	metricsGroup.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	// Group for all API routes
+	// API routes guarded by the gateway secret
 	baseApiGroup := router.Group("")
-	baseApiGroup.Use(middlewares.GatewayTrafficMiddleware(cfg.App.Auth.GatewaySecret))
+	baseApiGroup.Use(middlewares.GatewayTrafficMiddleware(cfg.Auth.GatewaySecret))
 	baseApiGroup.Use(middlewares.RequestIDMiddleware())
 	baseApiGroup.Use(gin.Recovery())
 
@@ -145,14 +143,12 @@ func (srvr *Server) Shutdown(ctx context.Context) error {
 }
 
 func (srvr *Server) Run() {
-	// Start HTTP server
 	go func() {
 		if err := srvr.start(); err != nil && err != http.ErrServerClosed {
 			srvr.logger.Fatalf("Booking server error: %v", err)
 		}
 	}()
 
-	// Wait for signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
@@ -166,15 +162,24 @@ func (srvr *Server) Run() {
 		srvr.logger.Errorf("Shutdown error: %v", err)
 	}
 
-	// Close all connections
+	// Drain consumers BEFORE closing anything they use: stop consuming, flush partial batches (commit + ack)
+	if srvr.stopConsumers != nil {
+		srvr.logger.Info("Draining booking consumers...")
+		stopCtx, stopCancel := context.WithTimeout(context.Background(), 45*time.Second)
+		if err := srvr.stopConsumers(stopCtx); err != nil {
+			srvr.logger.Errorf("Consumers drain error: %v", err)
+		}
+		stopCancel()
+	}
+
+	if err := srvr.rabbitMQConnection.Close(); err != nil {
+		srvr.logger.Errorf("RabbitMQ close error: %v", err)
+	}
 	if err := database.ClosePostgresConnection(srvr.postgresDB); err != nil {
 		srvr.logger.Errorf("Postgres close error: %v", err)
 	}
 	if err := redisDatabase.CloseRedisConnection(srvr.redisClient); err != nil {
 		srvr.logger.Errorf("Redis close error: %v", err)
-	}
-	if err := srvr.rabbitMQConnection.Close(); err != nil {
-		srvr.logger.Errorf("RabbitMQ close error: %v", err)
 	}
 
 	srvr.logger.Info("Booking server exited")

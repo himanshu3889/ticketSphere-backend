@@ -12,7 +12,7 @@ endif
 
 MIGRATE_POSTGRES = migrate -path base/migrations/postgres -database "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)?sslmode=disable"
 
-# Ignore the file system. These are action words, not files.
+# action words, not files
 .PHONY: migrate-post-up migrate-post-down migrate-post-version migrate-post-new
 
 migrate-post-up:
@@ -34,13 +34,13 @@ migrate-post-new:
 
 
 # Docker project commands
-DB_SERVICES = postgres mongodb redis
+DB_SERVICES = postgres redis
 MONITORING_SERVICES = prometheus prometheus-config grafana loki redis-exporter postgres-exporter otel-collector tempo
 QUEUE_SERVICES = rabbitmq
 
 up-db:
 	docker compose rm -f prometheus-config
-	docker compose up -d $(DB_SERVICES) 
+	docker compose up -d $(DB_SERVICES)
 
 down-db:
 	docker compose down $(DB_SERVICES)
@@ -106,6 +106,9 @@ air-inventory:
 
 air-booking:
 	air -c .air.booking.toml
+
+air-payment:
+	air -c .air.payment.toml
 
 # Gateway
 up-gateway:

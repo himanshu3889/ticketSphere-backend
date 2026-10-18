@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/bwmarrin/snowflake"
+	"github.com/himanshu3889/ticketSphere-backend/base/keys"
 	"github.com/himanshu3889/ticketSphere-backend/base/models"
 	"github.com/himanshu3889/ticketSphere-backend/base/utils/appError"
-
-	"github.com/bwmarrin/snowflake"
 )
 
 // GetUsersBatch fetches users using the cache only
@@ -22,18 +22,17 @@ func (cacheStore *CacheStore) GetUsersBatch(ctx context.Context, userIDs []snowf
 	userMap := make(map[snowflake.ID]*models.User, len(userIDs))
 
 	// Prepare Redis keys
-	keys := make([]string, len(userIDs))
+	cacheKeys := make([]string, len(userIDs))
 	idMap := make(map[string]snowflake.ID, len(userIDs)) // for mapping back
 
 	for i, id := range userIDs {
-		user := &models.User{ID: id}
-		keys[i] = user.CacheIDKey()
-		idMap[keys[i]] = id
+		cacheKeys[i] = keys.UserCacheIDKey(id)
+		idMap[cacheKeys[i]] = id
 	}
 
 	// Bulk fetch from Redis
-	cacheBoundedKey := models.User{}.CacheBoundedKey()
-	cachedData, err := cacheStore.CacheManager.MGet(ctx, cacheBoundedKey, keys)
+	cacheBoundedKey := keys.UserCacheBoundedKey()
+	cachedData, err := cacheStore.CacheManager.MGet(ctx, cacheBoundedKey, cacheKeys)
 	if err != nil {
 		cacheStore.logger.WithError(err).Error("Redis MGet failed")
 		// If Redis fails, treat all as missing

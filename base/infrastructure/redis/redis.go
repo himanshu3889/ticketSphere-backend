@@ -16,34 +16,55 @@ import (
 )
 
 // Initialize redis
-func InitRedis(redisConfigs *configs.RedisConfigurations, logger *logrus.Logger, traceProvider trace.TracerProvider) (error, *redis.Client, *CacheManager, *bloomFilter.BloomManager) {
+func InitRedis(redisCfg *configs.RedisConfig, logger *logrus.Logger, traceProvider trace.TracerProvider) (error, *redis.Client, *CacheManager, *bloomFilter.BloomManager) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	// Zero/negative values fall back to safe defaults; the pool-timeout
+	// fallback deliberately overrides go-redis' 4s default.
+	poolTimeout := time.Duration(redisCfg.PoolTimeoutMs) * time.Millisecond
+	if poolTimeout <= 0 {
+		poolTimeout = 750 * time.Millisecond
+	}
+	readTimeout := time.Duration(redisCfg.ReadTimeoutMs) * time.Millisecond
+	if readTimeout <= 0 {
+		readTimeout = time.Second
+	}
+	writeTimeout := time.Duration(redisCfg.WriteTimeoutMs) * time.Millisecond
+	if writeTimeout <= 0 {
+		writeTimeout = time.Second
+	}
+	dialTimeout := time.Duration(redisCfg.DialTimeoutMs) * time.Millisecond
+	if dialTimeout <= 0 {
+		dialTimeout = 2 * time.Second
+	}
+
 	redisClient := redis.NewClient(&redis.Options{
 		Addr: fmt.Sprintf("%s:%s",
-			redisConfigs.Host,
-			redisConfigs.Port),
-		Password:     redisConfigs.Password,
-		DB:           redisConfigs.DB,
-		PoolSize:     redisConfigs.PoolSize,
-		MinIdleConns: redisConfigs.MinIdleConns,
+			redisCfg.Host,
+			redisCfg.Port),
+		Password:     redisCfg.Password,
+		DB:           redisCfg.DB,
+		PoolSize:     redisCfg.PoolSize,
+		MinIdleConns: redisCfg.MinIdleConns,
+		PoolTimeout:  poolTimeout,
+		ReadTimeout:  readTimeout,
+		WriteTimeout: writeTimeout,
+		DialTimeout:  dialTimeout,
 	})
 
-	// Instrument the client with OpenTelemetry hooks
 	if err := redisotel.InstrumentTracing(redisClient); err != nil {
 		logger.WithError(err).Fatal("Failed to instrument Redis client with OpenTelemetry")
 		return err, nil, nil, nil
 	}
 
-	// Test connection
 	if err := redisClient.Ping(ctx).Err(); err != nil {
 		logger.WithError(err).Fatal("Redis connection failed")
 		return err, nil, nil, nil
 	}
 
 	// Initialize others
-	bloomManager, err := initBloomManager(redisConfigs.BloomFilters, redisClient, logger)
+	bloomManager, err := initBloomManager(redisCfg.BloomFilters, redisClient, logger)
 	if err != nil {
 		return err, nil, nil, nil
 	}

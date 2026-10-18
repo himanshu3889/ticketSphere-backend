@@ -48,7 +48,7 @@ func CheckPasswordHash(password, hash string) bool {
 }
 
 // Generate JWT tokens
-func GenerateToken(authConfigs *configs.AuthConfigurations, email string, userId snowflake.ID, duration time.Duration, tokenType TokenType) (string, error) {
+func GenerateToken(authConfigs *configs.AuthConfig, email string, userId snowflake.ID, duration time.Duration, tokenType TokenType) (string, error) {
 	claims := &JwtClaims{
 		Email:     email,
 		UserId:    userId.String(),

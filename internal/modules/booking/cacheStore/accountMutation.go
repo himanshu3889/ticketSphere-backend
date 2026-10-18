@@ -2,6 +2,8 @@ package bookingCacheStore
 
 import (
 	"context"
+
+	"github.com/himanshu3889/ticketSphere-backend/base/keys"
 	"github.com/himanshu3889/ticketSphere-backend/base/models"
 	"github.com/himanshu3889/ticketSphere-backend/base/utils/appError"
 )
@@ -14,17 +16,18 @@ func (cacheStore *CacheStore) CreateUser(ctx context.Context, user *models.User)
 		return appErr
 	}
 
-	// async Set cache
+	// async Set cache (detached from request lifecycle)
 	go func() {
-		err := cacheStore.CacheManager.Set(ctx, user.CacheIDKey(), nil, user, nil, 0)
+		bgCtx := context.WithoutCancel(ctx)
+		err := cacheStore.CacheManager.Set(bgCtx, keys.UserCacheIDKey(user.ID), nil, user, nil, 0)
 		if err != nil {
 			cacheStore.logger.WithError(err).Debug("Error setting the user info in cache")
 		}
 		// Add bloom keys for user -
 		// User Id
-		cacheStore.BloomManager.Add(ctx, user.BloomFilterIDBoundedKey(), user.BloomItemIDKey())
+		cacheStore.BloomManager.Add(bgCtx, keys.UserBloomFilterBoundedKey(), keys.UserBloomItemIDKey(user.ID))
 		// User email
-		cacheStore.BloomManager.Add(ctx, user.BloomFilterEmailBoundedKey(), user.BloomItemEmailKey())
+		cacheStore.BloomManager.Add(bgCtx, keys.UserEmailBloomFilterBoundedKey(), keys.UserBloomItemEmailKey(user.Email))
 	}()
 
 	return nil

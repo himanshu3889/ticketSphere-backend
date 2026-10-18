@@ -3,6 +3,7 @@ package bookingCacheStore
 import (
 	"errors"
 
+	"github.com/himanshu3889/ticketSphere-backend/base/constants"
 	redisDatabase "github.com/himanshu3889/ticketSphere-backend/base/infrastructure/redis"
 	"github.com/himanshu3889/ticketSphere-backend/base/infrastructure/redis/bloomFilter"
 	bookingRMQ "github.com/himanshu3889/ticketSphere-backend/internal/modules/booking/rmq"
@@ -43,7 +44,7 @@ func New(store *bookingStore.Store,
 		return nil, errors.New("Event bus is nil")
 	}
 
-	tracer := traceProvider.Tracer("ticketSphere.booking.cacheStore")
+	tracer := traceProvider.Tracer(constants.TracerBookingCacheStore)
 
 	return &CacheStore{
 		Store:        store,

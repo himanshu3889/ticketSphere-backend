@@ -1,0 +1,24 @@
+apiVersion: 1
+
+# Mirrors the data sources that were previously created by hand in the UI.
+# UIDs are kept identical to the originals so dashboards referencing them
+# (e.g. uid efo0xo115ws8wf for Prometheus) keep working unchanged.
+datasources:
+  - name: TicketSphere Prometheus v1
+    uid: efo0xo115ws8wf
+    type: prometheus
+    access: proxy
+    url: http://ticketsphere-prometheus:9090
+
+  - name: TicketSphere Loki v1
+    uid: afo0wq7azfke8f
+    type: loki
+    access: proxy
+    url: http://ticketsphere-loki:3100
+    isDefault: true
+
+  - name: tempo
+    uid: cfrsw0nmgu2gwf
+    type: tempo
+    access: proxy
+    url: http://tempo:3200

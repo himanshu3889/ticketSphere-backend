@@ -7,16 +7,8 @@ import (
 
 func SetupRoutes(baseApiGroup *gin.RouterGroup, apiHandler *ApiHandler) {
 	baseApi.RegisterBaseRoutes(baseApiGroup)
-
-	// Venue routes
 	apiHandler.RegisterVenueRoutes(baseApiGroup)
-
-	// Event routes
 	apiHandler.RegisterEventsRoutes(baseApiGroup)
-
-	// Section routes
 	apiHandler.RegisterSectionRoutes(baseApiGroup)
-
-	// Seat routes
 	apiHandler.RegisterSeatsRoutes(baseApiGroup)
 }

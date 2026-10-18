@@ -1,9 +1,9 @@
 name: ticketsphere
 
 services:
-  # Goma Gateway - Public Entry Point
+  # goma gateway - public entry point
 
-    # Renders goma.yml with env vars substituted
+  # Renders goma.yml with env vars substituted
   gateway-config:
     image: alpine:3.19
     container_name: ticketsphere-gateway-config
@@ -11,12 +11,15 @@ services:
     volumes:
       - ./gateway:/src:ro
       - gateway_data:/config
+    networks:
+      - ticketsphere-net
     command: >
       sh -c "
         apk add --no-cache gettext &&
-        envsubst < /src/goma.yml > /config/goma.yml
+        envsubst < /src/$${GOMA_TEMPLATE:-goma.yml} > /config/goma.yml
       "
     environment:
+      - GOMA_TEMPLATE=goma.yml
       - INVENTORY_API_TARGET=${INVENTORY_API_TARGET}
       - BOOKING_API_TARGET=${BOOKING_API_TARGET}
       - PAYMENT_API_TARGET=${PAYMENT_API_TARGET}
@@ -28,10 +31,11 @@ services:
       - REDIS_DB=${REDIS_DB}
       - REDIS_PORT=${REDIS_PORT}
 
-  # Goma Gateway
   gateway:
-    image: jkaninda/goma-gateway:latest
+    image: jkaninda/goma-gateway:0.15.1  # pinned: 1.0.0 (latest) removed `forwardHeaders` etc; config schema here is pre-1.0
     container_name: ticketsphere-gateway
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command: --config /config/goma.yml
     ports:
       - "${GATEWAY_PORT}:8080"
@@ -44,6 +48,10 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
     restart: unless-stopped
 
 volumes:

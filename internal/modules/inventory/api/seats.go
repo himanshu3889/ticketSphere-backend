@@ -7,15 +7,14 @@ import (
 )
 
 func (apiHandler *ApiHandler) RegisterSeatsRoutes(rg *gin.RouterGroup) {
-	// Seat private router group
+	// private seat routes (gateway auth)
 	seatPrivateRg := rg.Group("/seats", middlewares.GatewayAuthMiddleware(apiHandler.authConfigs.GatewaySecret))
 
-	// Get seat
 	seatPrivateRg.GET("/:seat_id", apiHandler.GetSeat)
 
 }
 
-// Get seat
+// GetSeat returns one seat by id.
 func (apiHandler *ApiHandler) GetSeat(ctx *gin.Context) {
 	seatIdStr := ctx.Param("seat_id")
 	seatId, err := utils.ValidSnowflakeID(seatIdStr)

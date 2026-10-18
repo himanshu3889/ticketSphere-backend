@@ -6,6 +6,7 @@ import (
 	"github.com/bwmarrin/snowflake"
 	"github.com/himanshu3889/ticketSphere-backend/base/models"
 	"github.com/himanshu3889/ticketSphere-backend/base/utils/appError"
+	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 )
 
@@ -19,11 +20,12 @@ func (store *Store) GetEventSeatsByIds(ctx context.Context, eventID snowflake.ID
 		return nil, appError.NewBadRequest("Too many seat ids provided")
 	}
 
-	query := `SELECT * FROM event_seats 
+	query := `SELECT id, event_id, section_id, "row", number, status, version, price, updated_at
+				FROM seats
 				WHERE event_id=$1 and id =ANY($2)`
 
 	var eventSeats []*models.Seat
-	err := store.PostgresDB.SelectContext(ctx, &eventSeats, query, eventID, seatIDs)
+	err := store.PostgresDB.SelectContext(ctx, &eventSeats, query, eventID, pq.Array(seatIDs))
 	if err != nil {
 		store.logger.WithError(err).
 			WithFields(logrus.Fields{"eventID": eventID, "seatIDs": seatIDs}).

@@ -59,7 +59,7 @@ func _clearTokenCookies(c *gin.Context) {
 }
 
 // Generate the user session with access and refresh tokens set in headers
-func _generateUserTokens(ctx *gin.Context, authConfigs *configs.AuthConfigurations, user *models.User) (access string, refresh string, err error) {
+func _generateUserTokens(ctx *gin.Context, authConfigs *configs.AuthConfig, user *models.User) (access string, refresh string, err error) {
 	// Generate Access Token
 	refreshToken, err := jwtAuthentication.GenerateToken(authConfigs, user.Email, user.ID, jwtAuthentication.RefreshTokenValidity, jwtAuthentication.RefreshToken)
 	if err != nil {
@@ -72,7 +72,7 @@ func _generateUserTokens(ctx *gin.Context, authConfigs *configs.AuthConfiguratio
 	}
 
 	// Set new cookies
-	_setRefreshTokenCookies(ctx, accessToken, int(jwtAuthentication.AccessTokenValidity), refreshToken, int(jwtAuthentication.RefreshTokenValidity.Seconds()))
+	_setRefreshTokenCookies(ctx, accessToken, int(jwtAuthentication.AccessTokenValidity.Seconds()), refreshToken, int(jwtAuthentication.RefreshTokenValidity.Seconds()))
 	return accessToken, refreshToken, nil
 }
 
@@ -88,7 +88,6 @@ type SignRequest struct {
 func (apiHandler *ApiHandler) signUp(ctx *gin.Context) {
 	var incomingUser SignRequest
 
-	// Bind the json with the user struct
 	if err := ctx.ShouldBindJSON(&incomingUser); err != nil {
 		utils.RespondWithError(ctx, http.StatusBadRequest, err.Error())
 		return
@@ -147,10 +146,7 @@ func (apiHandler *ApiHandler) signIn(ctx *gin.Context) {
 		return
 	}
 
-	// Check password by comparing input password to stored hashed password
-	// For security purpose, we can use this before finding user by email
-	// To prevent user enumertaion or timing attacks i.e. an attacker can guess the email
-	// by checking the response time
+	// compare before trusting the user row; keeps timing/enumeration hints minimal
 	if !jwtAuthentication.CheckPasswordHash(incomingUser.Password, user.Password) {
 		utils.RespondWithError(ctx, http.StatusBadRequest, "Invalid password")
 		return

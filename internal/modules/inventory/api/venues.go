@@ -6,18 +6,15 @@ import (
 )
 
 func (apiHandler *ApiHandler) RegisterVenueRoutes(rg *gin.RouterGroup) {
-	// Venue router group
+	// public venue routes
 	venueRg := rg.Group("/public/venues")
-	// Get all venues
 	venueRg.GET("", apiHandler.GetAllVenues)
-	// Get venue
 	venueRg.GET("/:venue_id", apiHandler.GetVenue)
-	// Get venue upcoming or live events
 	venueRg.GET("/:venue_id/events/upcoming-or-live", apiHandler.GetVenueUpcomingOrLiveEvents)
 
 }
 
-// Get all venues
+// GetAllVenues lists venues, newest first.
 func (apiHandler *ApiHandler) GetAllVenues(ctx *gin.Context) {
 	limit, cursor, ok := utils.GetCursorPagination(ctx)
 	if !ok {
@@ -40,9 +37,8 @@ func (apiHandler *ApiHandler) GetAllVenues(ctx *gin.Context) {
 	utils.RespondWithSuccess(ctx, 200, apiData)
 }
 
-// Get a venue
+// GetVenue returns one venue by id.
 func (apiHandler *ApiHandler) GetVenue(ctx *gin.Context) {
-	// Validate the venue id
 	venueIdStr := ctx.Param("venue_id")
 	venueId, err := utils.ValidSnowflakeID(venueIdStr)
 	if err != nil {
@@ -62,7 +58,7 @@ func (apiHandler *ApiHandler) GetVenue(ctx *gin.Context) {
 	utils.RespondWithSuccess(ctx, 200, apiData)
 }
 
-// Get venue upcoming or live events
+// GetVenueUpcomingOrLiveEvents lists a venue's upcoming or live events.
 func (apiHandler *ApiHandler) GetVenueUpcomingOrLiveEvents(ctx *gin.Context) {
 	venueIdStr := ctx.Param("venue_id")
 	venueId, err := utils.ValidSnowflakeID(venueIdStr)

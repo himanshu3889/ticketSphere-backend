@@ -45,7 +45,7 @@ func (store *Store) BookSeatsPessimistic(ctx context.Context, req *models.Bookin
 	}
 
 	// Build total and check if seat is available to book or not
-	total := 0.0
+	var total int64
 	for _, seat := range seats {
 		if seat.Status != models.SeatStatusAvailable {
 			errMsg := fmt.Sprintf("seat %d is not available", seat.ID)
@@ -138,7 +138,7 @@ func (store *Store) BookSeatsOptimistic(ctx context.Context, req *models.Booking
 	}
 
 	// Build total and check if seat is available to book or not
-	total := 0.0
+	var total int64
 	for _, seat := range seats {
 		if seat.Status != models.SeatStatusAvailable {
 			errMsg := fmt.Sprintf("Seat %d is not available", seat.ID)

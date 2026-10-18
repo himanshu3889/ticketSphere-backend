@@ -13,13 +13,12 @@ services:
     ports: ["5432:5432"]
     networks: [ticketsphere-net]
     restart: unless-stopped
-    # Hard limits on CPU, RAM, and disk
     deploy:
       resources:
         limits:
-          cpus: '2.0'
+          cpus: "1.0"
           memory: 2G
-    #  Limit the Docker volume size
+    # /dev/shm size
     shm_size: 256mb
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
@@ -27,31 +26,32 @@ services:
       timeout: 5s
       retries: 5
 
-  mongodb:
-    image: bitnami/mongodb:latest
-    container_name: ticketsphere-mongodb
-    environment:
-      - MONGODB_ROOT_PASSWORD=${MONGODB_ROOT_PASSWORD}
-      - MONGODB_DATABASE=${MONGODB_DATABASE}
-      - MONGODB_USERNAME=${MONGODB_USERNAME}
-      - MONGODB_PASSWORD=${MONGODB_PASSWORD}
-    volumes:
-      - mongodb_data:/bitnami/mongodb
-    ports: ["27017:27017"]
-    networks: [ticketsphere-net]
-    restart: unless-stopped
-    # Memory and CPU caps
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 2G
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
+  # MongoDB disabled (not used by any service right now)
+  # mongodb:
+  #   image: bitnami/mongodb:latest
+  #   container_name: ticketsphere-mongodb
+  #   environment:
+  #     - MONGODB_ROOT_PASSWORD=${MONGODB_ROOT_PASSWORD}
+  #     - MONGODB_DATABASE=${MONGODB_DATABASE}
+  #     - MONGODB_USERNAME=${MONGODB_USERNAME}
+  #     - MONGODB_PASSWORD=${MONGODB_PASSWORD}
+  #   volumes:
+  #     - mongodb_data:/bitnami/mongodb
+  #   ports: ["27017:27017"]
+  #   networks: [ticketsphere-net]
+  #   restart: unless-stopped
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: "2.0"
+  #         memory: 2G
+  #   healthcheck:
+  #     test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 20s
+
 
   redis:
     image: redis/redis-stack:latest
@@ -62,19 +62,18 @@ services:
         --save 900 1
         --save 300 10
         --save 60 10000
-        --maxmemory 512mb
+        --maxmemory ${REDIS_MAXMEMORY:-512mb}
         --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     ports: ["6379:6379"]
     networks: [ticketsphere-net]
     restart: unless-stopped
-    # Memory and CPU caps
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 1G
+          cpus: "1.0"
+          memory: 4G  # 2M seats
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
@@ -84,7 +83,7 @@ services:
 
 volumes:
   postgres_data:
-  mongodb_data:
+  # mongodb_data:   # disabled with the mongodb service above
   redis_data:
 
 networks:

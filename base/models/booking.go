@@ -22,7 +22,7 @@ type Booking struct {
 	EventID     snowflake.ID  `json:"event_id" db:"event_id"`
 	UserID      snowflake.ID  `json:"user_id" db:"user_id"`
 	Status      BookingStatus `json:"status" db:"status"`
-	TotalAmount float64       `json:"total_amount" db:"total_amount"`
+	TotalAmount int64         `json:"total_amount" db:"total_amount"`
 	ExpiresAt   time.Time     `json:"expires_at" db:"expires_at"`
 	CreatedAt   time.Time     `json:"created_at" db:"created_at"`
 	ConfirmedAt *time.Time    `json:"confirmed_at,omitempty" db:"confirmed_at"`
@@ -44,7 +44,7 @@ type BookingRequest struct {
 	EventID     snowflake.ID  `json:"event_id"`
 	UserID      snowflake.ID  `json:"user_id"`
 	Status      BookingStatus `json:"status"`
-	TotalAmount float64       `json:"total_amount"`
+	TotalAmount int64         `json:"total_amount"`
 	ExpiresAt   time.Time     `json:"expires_at"`
 	CreatedAt   time.Time     `json:"created_at"`
 	ConfirmedAt *time.Time    `json:"confirmed_at,omitempty"`

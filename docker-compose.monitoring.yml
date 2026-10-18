@@ -8,6 +8,8 @@ services:
     volumes:
       - ./monitoring:/src:ro
       - prometheus_data:/etc/prometheus
+    networks:
+      - ticketsphere-net
     command: >
       sh -c "
         apk add --no-cache gettext &&
@@ -21,12 +23,14 @@ services:
   prometheus:
     image: prom/prometheus:latest
     container_name: ticketsphere-prometheus
+    user: "0:0"  # single root-owned named volume is mounted at both /etc/prometheus and /prometheus; image default (nobody) can't write the TSDB
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.enable-lifecycle'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+      - "--web.enable-remote-write-receiver" # lets k6 stream test metrics into Grafana
     volumes:
       - prometheus_data:/etc/prometheus:ro
       - prometheus_data:/prometheus
@@ -38,13 +42,15 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
-
   grafana:
     image: grafana/grafana:latest
     container_name: ticketsphere-grafana
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
-    volumes: [grafana_data:/var/lib/grafana]
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports: ["${GRAFANA_PORT}:3000"]
     networks: [ticketsphere-net]
     profiles: [monitoring]
@@ -56,7 +62,7 @@ services:
     ports: ["3100:3100"]
     command: ["-config.file=/etc/loki/loki.yml"]
     volumes:
-      - ./monitoring/loki.yml:/etc/loki/loki.yml 
+      - ./monitoring/loki.yml:/etc/loki/loki.yml
       - loki_data:/loki
     networks: [ticketsphere-net]
     profiles: [monitoring]
@@ -68,9 +74,9 @@ services:
     volumes:
       - ./monitoring/otel-collector.yml:/etc/otel/config.yml:ro
     ports:
-      - "4317:4317"   # gRPC OTLP receiver
-      - "4318:4318"   # HTTP OTLP receiver
-      - "8889:8889"   # Prometheus metrics for collector itself
+      - "4317:4317" # gRPC OTLP receiver
+      - "4318:4318" # HTTP OTLP receiver
+      - "8889:8889" # Prometheus metrics for collector itself
     networks: [ticketsphere-net]
     profiles: [monitoring]
     restart: unless-stopped
@@ -84,12 +90,10 @@ services:
       - ./monitoring/tempo.yml:/etc/tempo.yml:ro
       - tempo_data:/tmp/tempo
     ports:
-      - "3200:3200"   # Tempo HTTP API (Grafana queries this)
+      - "3200:3200" # Tempo HTTP API (Grafana queries this)
     networks: [ticketsphere-net]
     profiles: [monitoring]
     restart: unless-stopped
-
-
 
 volumes:
   prometheus_data:
